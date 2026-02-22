@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+FLYWAY_IMAGE="${FLYWAY_IMAGE:-docker.io/flyway/flyway:12-alpine}"
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+DB_DIR="${SCRIPT_DIR}"
+REPO_ROOT="$(cd -- "${DB_DIR}/.." && pwd)"
+
+SQL_DIR="${SQL_DIR:-${DB_DIR}/sql}"
+CONF_FILE="${CONF_FILE:-${DB_DIR}/flyway.conf}"
+ENV_FILE="${ENV_FILE:-${REPO_ROOT}/.env}"
+
+if [[ -f "$ENV_FILE" ]]; then
+  set -a
+  source "$ENV_FILE"
+  set +a
+fi
+
+: "${FLYWAY_URL:?Missing FLYWAY_URL}"
+: "${FLYWAY_USER:?Missing FLYWAY_USER}"
+: "${FLYWAY_PASSWORD:?Missing FLYWAY_PASSWORD}"
+
+if [[ ! -d "$SQL_DIR" ]]; then
+  echo "ERROR: SQL directory '$SQL_DIR' not found"
+  exit 2
+fi
+
+if [[ ! -f "$CONF_FILE" ]]; then
+  echo "ERROR: Flyway config '$CONF_FILE' not found"
+  exit 3
+fi
+
+OS_NAME="$(uname -s | tr '[:upper:]' '[:lower:]')"
+
+if [[ -n "${FLYWAY_RUNTIME:-}" ]]; then
+  RUNTIME="$FLYWAY_RUNTIME"
+else
+  if [[ "$OS_NAME" == "darwin"* ]]; then
+    if command -v docker >/dev/null 2>&1; then
+      RUNTIME="docker"
+    elif command -v podman >/dev/null 2>&1; then
+      RUNTIME="podman"
+    else
+      echo "ERROR: neither docker nor podman found in PATH" >&2
+      exit 4
+    fi
+  else
+    if command -v podman >/dev/null 2>&1; then
+      RUNTIME="podman"
+    elif command -v docker >/dev/null 2>&1; then
+      RUNTIME="docker"
+    else
+      echo "ERROR: neither docker nor podman found in PATH" >&2
+      exit 4
+    fi
+  fi
+fi
+
+declare -a NET_ARGS
+NET_ARGS=()
+if [[ -n "${FLYWAY_NET_ARGS:-}" ]]; then
+  NET_ARGS=(${FLYWAY_NET_ARGS})
+else
+  if [[ "$OS_NAME" != "darwin"* ]]; then
+    NET_ARGS=(--network host)
+  fi
+fi
+
+exec "$RUNTIME" run --rm \
+  "${NET_ARGS[@]+${NET_ARGS[@]}}" \
+  -e FLYWAY_URL \
+  -e FLYWAY_USER \
+  -e FLYWAY_PASSWORD \
+  -v "${SQL_DIR}:/flyway/sql:ro" \
+  -v "${CONF_FILE}:/flyway/conf/flyway.conf:ro" \
+  "$FLYWAY_IMAGE" "$@"
