@@ -15,7 +15,7 @@
   <dependencies>
     <dependency>
       <groupId>com.rafex.housedb</groupId>
-      <artifactId>housedb-common</artifactId>
+      <artifactId>housedb-core</artifactId>
       <version>${project.version}</version>
     </dependency>
   </dependencies>

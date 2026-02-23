@@ -11,12 +11,4 @@
 
   <artifactId>housedb-ports</artifactId>
   <packaging>jar</packaging>
-
-  <dependencies>
-    <dependency>
-      <groupId>com.rafex.housedb</groupId>
-      <artifactId>housedb-common</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-  </dependencies>
 </project>

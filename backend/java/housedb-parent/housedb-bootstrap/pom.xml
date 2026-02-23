@@ -23,10 +23,5 @@
       <artifactId>housedb-infra-postgres</artifactId>
       <version>${project.version}</version>
     </dependency>
-    <dependency>
-      <groupId>com.rafex.housedb</groupId>
-      <artifactId>housedb-transport-jetty</artifactId>
-      <version>${project.version}</version>
-    </dependency>
   </dependencies>
 </project>
