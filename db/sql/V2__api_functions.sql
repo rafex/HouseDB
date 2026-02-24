@@ -95,6 +95,7 @@ RETURNS TABLE (
 DECLARE
   v_current_location UUID;
   v_movement_id UUID;
+  v_effective_moved_at TIMESTAMPTZ;
 BEGIN
   IF p_inventory_item_id IS NULL THEN
     RAISE EXCEPTION 'p_inventory_item_id is required';
@@ -104,6 +105,11 @@ BEGIN
     RAISE EXCEPTION 'p_to_house_location_leaf_id is required';
   END IF;
 
+  v_effective_moved_at := COALESCE(p_moved_at, now());
+
+  -- Serialize moves per inventory item to keep from_location deterministic.
+  PERFORM pg_advisory_xact_lock(hashtextextended(p_inventory_item_id::TEXT, 0));
+
   SELECT icl.house_location_leaf_id
     INTO v_current_location
   FROM item_current_location icl
@@ -112,28 +118,25 @@ BEGIN
     AND icl.enabled = TRUE
   FOR UPDATE;
 
-  IF v_current_location IS NULL THEN
-    INSERT INTO item_current_location (
-      inventory_item_id,
-      house_location_leaf_id,
-      assigned_at,
-      is_current,
-      enabled
-    ) VALUES (
-      p_inventory_item_id,
-      p_to_house_location_leaf_id,
-      COALESCE(p_moved_at, now()),
-      TRUE,
-      TRUE
-    );
-  ELSE
-    UPDATE item_current_location
-      SET house_location_leaf_id = p_to_house_location_leaf_id,
-          assigned_at = COALESCE(p_moved_at, now()),
-          is_current = TRUE,
-          enabled = TRUE
-    WHERE inventory_item_id = p_inventory_item_id;
-  END IF;
+  INSERT INTO item_current_location (
+    inventory_item_id,
+    house_location_leaf_id,
+    assigned_at,
+    is_current,
+    enabled
+  ) VALUES (
+    p_inventory_item_id,
+    p_to_house_location_leaf_id,
+    v_effective_moved_at,
+    TRUE,
+    TRUE
+  )
+  ON CONFLICT (inventory_item_id)
+  DO UPDATE SET
+    house_location_leaf_id = EXCLUDED.house_location_leaf_id,
+    assigned_at = EXCLUDED.assigned_at,
+    is_current = TRUE,
+    enabled = TRUE;
 
   INSERT INTO item_movements (
     inventory_item_id,
@@ -150,7 +153,7 @@ BEGIN
     p_to_house_location_leaf_id,
     COALESCE(NULLIF(btrim(p_movement_reason), ''), 'manual_transfer'),
     p_moved_by,
-    COALESCE(p_moved_at, now()),
+    v_effective_moved_at,
     p_notes,
     TRUE
   )
@@ -163,7 +166,7 @@ BEGIN
     p_inventory_item_id,
     v_current_location,
     p_to_house_location_leaf_id,
-    COALESCE(p_moved_at, now());
+    v_effective_moved_at;
 END;
 $$ LANGUAGE plpgsql;
 
