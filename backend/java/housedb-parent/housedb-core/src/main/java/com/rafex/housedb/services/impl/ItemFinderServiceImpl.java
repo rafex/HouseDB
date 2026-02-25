@@ -6,6 +6,7 @@ import com.rafex.housedb.repository.InventorySearchRepository;
 import com.rafex.housedb.service.models.FavoriteState;
 import com.rafex.housedb.service.models.HouseItem;
 import com.rafex.housedb.service.models.InventoryCreateResult;
+import com.rafex.housedb.service.models.InventoryItemDetail;
 import com.rafex.housedb.service.models.InventoryTimelineEvent;
 import com.rafex.housedb.service.models.ItemMovement;
 import com.rafex.housedb.service.models.LocationInventoryItem;
@@ -123,6 +124,14 @@ public final class ItemFinderServiceImpl implements ItemFinderService {
         final var safeRadius = radiusMeters == null || radiusMeters <= 0 ? 1000D : radiusMeters;
         return mapper.toNearbyInventoryItems(
                 searchRepository.searchInventoryItemsNearPoint(userId, latitude, longitude, safeRadius, normalizeLimit(limit)));
+    }
+
+    @Override
+    public InventoryItemDetail getInventoryItemDetail(final UUID inventoryItemId) throws SQLException {
+        if (inventoryItemId == null) {
+            throw new IllegalArgumentException("inventoryItemId is required");
+        }
+        return mapper.toInventoryItemDetail(searchRepository.getInventoryItemDetail(inventoryItemId));
     }
 
     private static void requireUser(final UUID userId) {

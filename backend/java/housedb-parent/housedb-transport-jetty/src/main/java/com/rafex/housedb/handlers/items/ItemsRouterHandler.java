@@ -1,5 +1,6 @@
 package com.rafex.housedb.handlers.items;
 
+import com.rafex.housedb.kiwi.KiwiApiClient;
 import com.rafex.housedb.services.ItemFinderService;
 
 import org.eclipse.jetty.server.Handler;
@@ -16,9 +17,9 @@ public final class ItemsRouterHandler extends Handler.Abstract {
     private final InventoryMoveHandler moveHandler;
     private final InventoryTimelineHandler timelineHandler;
     private final InventoryFavoriteHandler favoriteHandler;
-    private final KiwiLocationSyncHandler kiwiLocationSyncHandler;
+    private final ItemDetailHandler itemDetailHandler;
 
-    public ItemsRouterHandler(final ItemFinderService service) {
+    public ItemsRouterHandler(final ItemFinderService service, final KiwiApiClient kiwiApiClient) {
         searchHandler = new InventorySearchHandler(service);
         nearbyHandler = new InventoryNearbyHandler(service);
         byLocationHandler = new InventoryByLocationHandler(service);
@@ -26,7 +27,7 @@ public final class ItemsRouterHandler extends Handler.Abstract {
         moveHandler = new InventoryMoveHandler(service);
         timelineHandler = new InventoryTimelineHandler(service);
         favoriteHandler = new InventoryFavoriteHandler(service);
-        kiwiLocationSyncHandler = new KiwiLocationSyncHandler(service);
+        itemDetailHandler = new ItemDetailHandler(kiwiApiClient, service);
     }
 
     @Override
@@ -58,10 +59,10 @@ public final class ItemsRouterHandler extends Handler.Abstract {
             final var inventoryItemId = ItemRequestParsers.extractInventoryItemId(path, "/favorite");
             return favoriteHandler.handle(request, response, callback, inventoryItemId);
         }
-        if ("POST".equals(method) && "/locations/sync/kiwi".equals(path)) {
-            return kiwiLocationSyncHandler.handle(request, response, callback);
+        if ("GET".equals(method) && (path.startsWith("/items/") || path.startsWith("/item/"))) {
+            final var itemId = ItemRequestParsers.extractItemId(path);
+            return itemDetailHandler.handle(request, response, callback, itemId);
         }
-
         return false;
     }
 }

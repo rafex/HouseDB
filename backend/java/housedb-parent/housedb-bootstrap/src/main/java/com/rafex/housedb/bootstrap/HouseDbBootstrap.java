@@ -2,6 +2,7 @@ package com.rafex.housedb.bootstrap;
 
 import java.util.Objects;
 
+import com.rafex.housedb.services.HouseService;
 import com.rafex.housedb.services.ItemFinderService;
 
 public final class HouseDbBootstrap {
@@ -18,6 +19,10 @@ public final class HouseDbBootstrap {
 
         public ItemFinderService itemFinderService() {
             return container.itemFinderService();
+        }
+
+        public HouseService houseService() {
+            return container.houseService();
         }
 
         @Override

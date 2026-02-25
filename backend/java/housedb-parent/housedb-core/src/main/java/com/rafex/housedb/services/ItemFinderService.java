@@ -7,6 +7,7 @@ import java.util.UUID;
 import com.rafex.housedb.service.models.FavoriteState;
 import com.rafex.housedb.service.models.HouseItem;
 import com.rafex.housedb.service.models.InventoryCreateResult;
+import com.rafex.housedb.service.models.InventoryItemDetail;
 import com.rafex.housedb.service.models.InventoryTimelineEvent;
 import com.rafex.housedb.service.models.ItemMovement;
 import com.rafex.housedb.service.models.LocationInventoryItem;
@@ -37,4 +38,6 @@ public interface ItemFinderService {
 
     List<NearbyInventoryItem> searchInventoryItemsNearPoint(UUID userId, double latitude, double longitude,
             Double radiusMeters, Integer limit) throws SQLException;
+
+    InventoryItemDetail getInventoryItemDetail(UUID inventoryItemId) throws SQLException;
 }

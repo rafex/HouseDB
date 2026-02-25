@@ -6,6 +6,7 @@ import com.rafex.housedb.repository.InventorySearchRepository;
 import com.rafex.housedb.repository.models.FavoriteStateEntity;
 import com.rafex.housedb.repository.models.HouseItemEntity;
 import com.rafex.housedb.repository.models.InventoryCreateResultEntity;
+import com.rafex.housedb.repository.models.InventoryItemDetailEntity;
 import com.rafex.housedb.repository.models.InventoryTimelineEventEntity;
 import com.rafex.housedb.repository.models.ItemMovementEntity;
 import com.rafex.housedb.repository.models.LocationInventoryItemEntity;
@@ -107,6 +108,24 @@ public final class ItemRepositoryImpl
                    house_location_path,
                    distance_meters
               FROM api_search_inventory_items_near_point(?, ?, ?, ?, ?)
+            """;
+    private static final String SQL_ITEM_DETAIL = """
+            SELECT inventory_item_id,
+                   user_id,
+                   object_id,
+                   object_kiwi_id,
+                   nickname,
+                   serial_number,
+                   condition_status,
+                   inventory_item_enabled,
+                   house_id,
+                   house_name,
+                   house_location_leaf_id,
+                   house_location_path,
+                   assigned_at,
+                   created_at,
+                   updated_at
+              FROM api_get_inventory_item_detail(?)
             """;
 
     private final DataSource dataSource;
@@ -346,6 +365,35 @@ public final class ItemRepositoryImpl
         }
 
         return result;
+    }
+
+    @Override
+    public InventoryItemDetailEntity getInventoryItemDetail(final UUID inventoryItemId) throws SQLException {
+        try (Connection connection = dataSource.getConnection();
+                PreparedStatement ps = connection.prepareStatement(SQL_ITEM_DETAIL)) {
+            ps.setObject(1, inventoryItemId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    return null;
+                }
+                return new InventoryItemDetailEntity(
+                        rs.getObject("inventory_item_id", UUID.class),
+                        rs.getObject("user_id", UUID.class),
+                        rs.getObject("object_id", UUID.class),
+                        rs.getObject("object_kiwi_id", UUID.class),
+                        rs.getString("nickname"),
+                        rs.getString("serial_number"),
+                        rs.getString("condition_status"),
+                        rs.getBoolean("inventory_item_enabled"),
+                        rs.getObject("house_id", UUID.class),
+                        rs.getString("house_name"),
+                        rs.getObject("house_location_leaf_id", UUID.class),
+                        rs.getString("house_location_path"),
+                        asInstant(rs, "assigned_at"),
+                        asInstant(rs, "created_at"),
+                        asInstant(rs, "updated_at"));
+            }
+        }
     }
 
     private static Instant asInstant(final ResultSet rs, final String column) throws SQLException {

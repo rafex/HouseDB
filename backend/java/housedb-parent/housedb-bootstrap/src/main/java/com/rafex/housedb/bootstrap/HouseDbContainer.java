@@ -1,11 +1,15 @@
 package com.rafex.housedb.bootstrap;
 
 import com.rafex.housedb.db.Db;
+import com.rafex.housedb.repository.HouseManagementRepository;
 import com.rafex.housedb.repository.HouseLocationSyncRepository;
 import com.rafex.housedb.repository.InventoryMutationRepository;
 import com.rafex.housedb.repository.InventorySearchRepository;
+import com.rafex.housedb.repository.impl.HouseRepositoryImpl;
 import com.rafex.housedb.repository.impl.ItemRepositoryImpl;
+import com.rafex.housedb.services.HouseService;
 import com.rafex.housedb.services.ItemFinderService;
+import com.rafex.housedb.services.impl.HouseServiceImpl;
 import com.rafex.housedb.services.impl.ItemFinderServiceImpl;
 
 import java.util.Objects;
@@ -20,7 +24,9 @@ public final class HouseDbContainer {
             Optional<Supplier<InventorySearchRepository>> inventorySearchRepository,
             Optional<Supplier<InventoryMutationRepository>> inventoryMutationRepository,
             Optional<Supplier<HouseLocationSyncRepository>> houseLocationSyncRepository,
-            Optional<Supplier<ItemFinderService>> itemFinderService) {
+            Optional<Supplier<ItemFinderService>> itemFinderService,
+            Optional<Supplier<HouseManagementRepository>> houseManagementRepository,
+            Optional<Supplier<HouseService>> houseService) {
         public Overrides {
             config = config != null ? config : Optional.empty();
             dataSource = dataSource != null ? dataSource : Optional.empty();
@@ -32,6 +38,10 @@ public final class HouseDbContainer {
                     ? houseLocationSyncRepository
                     : Optional.empty();
             itemFinderService = itemFinderService != null ? itemFinderService : Optional.empty();
+            houseManagementRepository = houseManagementRepository != null
+                    ? houseManagementRepository
+                    : Optional.empty();
+            houseService = houseService != null ? houseService : Optional.empty();
         }
 
         public static Builder builder() {
@@ -46,6 +56,8 @@ public final class HouseDbContainer {
             private Supplier<InventoryMutationRepository> inventoryMutationRepository;
             private Supplier<HouseLocationSyncRepository> houseLocationSyncRepository;
             private Supplier<ItemFinderService> itemFinderService;
+            private Supplier<HouseManagementRepository> houseManagementRepository;
+            private Supplier<HouseService> houseService;
 
             public Builder config(final Supplier<HouseDbConfig> value) {
                 config = value;
@@ -77,10 +89,21 @@ public final class HouseDbContainer {
                 return this;
             }
 
+            public Builder houseManagementRepository(final Supplier<HouseManagementRepository> value) {
+                houseManagementRepository = value;
+                return this;
+            }
+
+            public Builder houseService(final Supplier<HouseService> value) {
+                houseService = value;
+                return this;
+            }
+
             public Overrides build() {
                 return new Overrides(Optional.ofNullable(config), Optional.ofNullable(dataSource),
                         Optional.ofNullable(inventorySearchRepository), Optional.ofNullable(inventoryMutationRepository),
-                        Optional.ofNullable(houseLocationSyncRepository), Optional.ofNullable(itemFinderService));
+                        Optional.ofNullable(houseLocationSyncRepository), Optional.ofNullable(itemFinderService),
+                        Optional.ofNullable(houseManagementRepository), Optional.ofNullable(houseService));
             }
         }
     }
@@ -92,6 +115,9 @@ public final class HouseDbContainer {
     private final Lazy<InventoryMutationRepository> inventoryMutationRepository;
     private final Lazy<HouseLocationSyncRepository> houseLocationSyncRepository;
     private final Lazy<ItemFinderService> itemFinderService;
+    private final Lazy<HouseManagementRepository> houseManagementRepository;
+    private final Lazy<HouseService> houseService;
+    private final Lazy<HouseRepositoryImpl> houseRepository;
 
     public HouseDbContainer() {
         this(Overrides.builder().build());
@@ -103,6 +129,7 @@ public final class HouseDbContainer {
         config = new Lazy<>(select(overrides.config(), HouseDbConfig::fromEnv));
         dataSource = new Lazy<>(select(overrides.dataSource(), DataSourceFactory::create));
         itemRepository = new Lazy<>(() -> new ItemRepositoryImpl(dataSource()));
+        houseRepository = new Lazy<>(() -> new HouseRepositoryImpl(dataSource()));
 
         inventorySearchRepository = new Lazy<>(select(overrides.inventorySearchRepository(),
                 this::itemRepository));
@@ -114,6 +141,10 @@ public final class HouseDbContainer {
         itemFinderService = new Lazy<>(select(overrides.itemFinderService(),
                 () -> new ItemFinderServiceImpl(inventorySearchRepository(), inventoryMutationRepository(),
                         houseLocationSyncRepository())));
+        houseManagementRepository = new Lazy<>(select(overrides.houseManagementRepository(),
+                this::houseRepository));
+        houseService = new Lazy<>(select(overrides.houseService(),
+                () -> new HouseServiceImpl(houseManagementRepository())));
     }
 
     public HouseDbConfig config() {
@@ -144,6 +175,18 @@ public final class HouseDbContainer {
         return itemFinderService.get();
     }
 
+    private HouseRepositoryImpl houseRepository() {
+        return houseRepository.get();
+    }
+
+    public HouseManagementRepository houseManagementRepository() {
+        return houseManagementRepository.get();
+    }
+
+    public HouseService houseService() {
+        return houseService.get();
+    }
+
     public void warmup() {
         config();
         dataSource();
@@ -151,6 +194,8 @@ public final class HouseDbContainer {
         inventoryMutationRepository();
         houseLocationSyncRepository();
         itemFinderService();
+        houseManagementRepository();
+        houseService();
     }
 
     private static <T> Supplier<T> select(final Optional<Supplier<T>> override, final Supplier<T> def) {

@@ -2,13 +2,10 @@ package com.rafex.housedb.dtos;
 
 import java.util.UUID;
 
-public record UpsertKiwiLocationRequest(
-        UUID houseId,
-        UUID kiwiLocationId,
-        UUID kiwiParentLocationId,
-        UUID parentHouseLocationId,
-        String locationKind,
+public record CreateHouseLocationRequest(
         String name,
+        UUID parentKiwiLocationId,
+        String locationKind,
         Boolean isLeaf,
         String path,
         String referenceCode,

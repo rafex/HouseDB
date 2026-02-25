@@ -3,6 +3,7 @@ package com.rafex.housedb.services.impl;
 import com.rafex.housedb.repository.models.FavoriteStateEntity;
 import com.rafex.housedb.repository.models.HouseItemEntity;
 import com.rafex.housedb.repository.models.InventoryCreateResultEntity;
+import com.rafex.housedb.repository.models.InventoryItemDetailEntity;
 import com.rafex.housedb.repository.models.InventoryTimelineEventEntity;
 import com.rafex.housedb.repository.models.ItemMovementEntity;
 import com.rafex.housedb.repository.models.LocationInventoryItemEntity;
@@ -10,6 +11,7 @@ import com.rafex.housedb.repository.models.NearbyInventoryItemEntity;
 import com.rafex.housedb.service.models.FavoriteState;
 import com.rafex.housedb.service.models.HouseItem;
 import com.rafex.housedb.service.models.InventoryCreateResult;
+import com.rafex.housedb.service.models.InventoryItemDetail;
 import com.rafex.housedb.service.models.InventoryTimelineEvent;
 import com.rafex.housedb.service.models.ItemMovement;
 import com.rafex.housedb.service.models.LocationInventoryItem;
@@ -70,5 +72,15 @@ final class ItemModelMapper {
         return new NearbyInventoryItem(source.inventoryItemId(), source.objectId(), source.objectName(),
                 source.houseId(), source.houseName(), source.houseLocationLeafId(), source.houseLocationPath(),
                 source.distanceMeters());
+    }
+
+    InventoryItemDetail toInventoryItemDetail(final InventoryItemDetailEntity source) {
+        if (source == null) {
+            return null;
+        }
+        return new InventoryItemDetail(source.inventoryItemId(), source.userId(), source.objectId(), source.objectKiwiId(),
+                source.nickname(), source.serialNumber(), source.conditionStatus(), source.inventoryItemEnabled(),
+                source.houseId(), source.houseName(), source.houseLocationLeafId(), source.houseLocationPath(),
+                source.assignedAt(), source.createdAt(), source.updatedAt());
     }
 }

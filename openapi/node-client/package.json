@@ -1,0 +1,20 @@
+{
+  "name": "housedb-node-client",
+  "version": "1.0.0",
+  "description": "CLI Node.js para consumir la API HouseDB",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "web": "node src/server.js",
+    "health": "node src/index.js health",
+    "demo": "node src/index.js demo"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "js-yaml": "^4.1.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

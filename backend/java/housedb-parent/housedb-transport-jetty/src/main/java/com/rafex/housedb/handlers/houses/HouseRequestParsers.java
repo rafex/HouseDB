@@ -1,4 +1,4 @@
-package com.rafex.housedb.handlers.items;
+package com.rafex.housedb.handlers.houses;
 
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
@@ -6,9 +6,9 @@ import java.util.UUID;
 import org.eclipse.jetty.util.MultiMap;
 import org.eclipse.jetty.util.UrlEncoded;
 
-final class ItemRequestParsers {
+final class HouseRequestParsers {
 
-    private ItemRequestParsers() {
+    private HouseRequestParsers() {
     }
 
     static MultiMap<String> parseQuery(final String rawQuery) {
@@ -40,18 +40,6 @@ final class ItemRequestParsers {
         }
     }
 
-    static UUID parseOptionalUuid(final MultiMap<String> params, final String key) {
-        final var value = getValue(params, key);
-        if (value == null) {
-            return null;
-        }
-        try {
-            return UUID.fromString(value);
-        } catch (final IllegalArgumentException e) {
-            throw new IllegalArgumentException(key + " must be a valid UUID");
-        }
-    }
-
     static Integer parseOptionalInt(final MultiMap<String> params, final String key) {
         final var value = getValue(params, key);
         if (value == null) {
@@ -62,26 +50,6 @@ final class ItemRequestParsers {
         } catch (final NumberFormatException e) {
             throw new IllegalArgumentException(key + " must be an integer");
         }
-    }
-
-    static Double parseOptionalDouble(final MultiMap<String> params, final String key) {
-        final var value = getValue(params, key);
-        if (value == null) {
-            return null;
-        }
-        try {
-            return Double.parseDouble(value);
-        } catch (final NumberFormatException e) {
-            throw new IllegalArgumentException(key + " must be a number");
-        }
-    }
-
-    static double parseRequiredDouble(final MultiMap<String> params, final String key) {
-        final var value = parseOptionalDouble(params, key);
-        if (value == null) {
-            throw new IllegalArgumentException(key + " is required");
-        }
-        return value;
     }
 
     static Boolean parseOptionalBoolean(final MultiMap<String> params, final String key) {
@@ -98,41 +66,32 @@ final class ItemRequestParsers {
         throw new IllegalArgumentException(key + " must be true or false");
     }
 
-    static UUID extractInventoryItemId(final String path, final String suffix) {
-        final String prefix = "/items/";
+    static UUID extractHouseIdFromMembersPath(final String path) {
+        final String prefix = "/houses/";
+        final String suffix = "/members";
+        return extractHouseId(path, prefix, suffix);
+    }
+
+    static UUID extractHouseIdFromLocationsPath(final String path) {
+        final String prefix = "/houses/";
+        final String suffix = "/locations";
+        return extractHouseId(path, prefix, suffix);
+    }
+
+    private static UUID extractHouseId(final String path, final String prefix, final String suffix) {
         final int start = prefix.length();
         final int end = path.length() - suffix.length();
         if (end <= start) {
-            throw new IllegalArgumentException("invalid inventory item path");
+            throw new IllegalArgumentException("invalid house path");
         }
         final String raw = path.substring(start, end);
         if (raw.endsWith("/")) {
-            throw new IllegalArgumentException("invalid inventory item path");
+            throw new IllegalArgumentException("invalid house path");
         }
         try {
             return UUID.fromString(raw);
         } catch (final IllegalArgumentException e) {
-            throw new IllegalArgumentException("inventoryItemId in path must be a valid UUID");
-        }
-    }
-
-    static UUID extractItemId(final String path) {
-        final String prefix;
-        if (path.startsWith("/items/")) {
-            prefix = "/items/";
-        } else if (path.startsWith("/item/")) {
-            prefix = "/item/";
-        } else {
-            throw new IllegalArgumentException("invalid item path");
-        }
-        final String raw = path.substring(prefix.length());
-        if (raw.isBlank() || raw.contains("/")) {
-            throw new IllegalArgumentException("invalid item path");
-        }
-        try {
-            return UUID.fromString(raw);
-        } catch (final IllegalArgumentException e) {
-            throw new IllegalArgumentException("id in path must be a valid UUID");
+            throw new IllegalArgumentException("houseId in path must be a valid UUID");
         }
     }
 }

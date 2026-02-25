@@ -2,8 +2,10 @@ package com.rafex.housedb.server;
 
 import com.rafex.housedb.bootstrap.HouseDbContainer;
 import com.rafex.housedb.handlers.HealthHandler;
+import com.rafex.housedb.handlers.houses.HousesRouterHandler;
 import com.rafex.housedb.handlers.NotFoundHandler;
 import com.rafex.housedb.handlers.items.ItemsRouterHandler;
+import com.rafex.housedb.kiwi.KiwiApiClient;
 
 import java.util.logging.Logger;
 
@@ -37,10 +39,15 @@ public final class HouseDBServer {
 
         final var routes = new PathMappingsHandler();
         routes.addMapping(PathSpec.from("/health"), new HealthHandler());
-        final var itemRoutes = new ItemsRouterHandler(container.itemFinderService());
+        final var kiwiApiClient = new KiwiApiClient();
+        final var itemRoutes = new ItemsRouterHandler(container.itemFinderService(), kiwiApiClient);
+        final var houseRoutes = new HousesRouterHandler(container.houseService(), container.itemFinderService(),
+                kiwiApiClient);
         routes.addMapping(PathSpec.from("/items"), itemRoutes);
         routes.addMapping(PathSpec.from("/items/*"), itemRoutes);
-        routes.addMapping(PathSpec.from("/locations/sync/kiwi"), itemRoutes);
+        routes.addMapping(PathSpec.from("/item/*"), itemRoutes);
+        routes.addMapping(PathSpec.from("/houses"), houseRoutes);
+        routes.addMapping(PathSpec.from("/houses/*"), houseRoutes);
         routes.addMapping(PathSpec.from("/*"), new NotFoundHandler());
 
         server.setHandler(routes);

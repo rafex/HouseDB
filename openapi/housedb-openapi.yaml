@@ -1,0 +1,768 @@
+openapi: 3.0.3
+info:
+  title: HouseDB API
+  version: 1.0.0
+  description: |
+    OpenAPI Specification para HouseDB (transport Jetty).
+    Incluye endpoints de inventario, casas y fachada interna a Kiwi.
+servers:
+  - url: http://localhost:8080
+    description: Desarrollo local
+
+security: []
+
+tags:
+  - name: Public
+  - name: Items
+  - name: Houses
+
+paths:
+  /health:
+    get:
+      tags: [Public]
+      summary: Estado de salud del servicio
+      responses:
+        '200':
+          description: Servicio disponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '405':
+          description: Método no permitido
+
+  /items/search:
+    get:
+      tags: [Items]
+      summary: Buscar items de inventario
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: houseId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: houseLocationLeafId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+      responses:
+        '200':
+          description: Resultado de búsqueda
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchInventoryResponse'
+        '400':
+          description: Parámetros inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /items/nearby:
+    get:
+      tags: [Items]
+      summary: Buscar items cercanos por coordenadas
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: latitude
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+        - name: longitude
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+        - name: radiusMeters
+          in: query
+          required: false
+          schema:
+            type: number
+            format: double
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+      responses:
+        '200':
+          description: Resultado de búsqueda por cercanía
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NearbyInventoryResponse'
+        '400':
+          description: Parámetros inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /items/by-location:
+    get:
+      tags: [Items]
+      summary: Listar inventario por ubicación
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: houseId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: houseLocationId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: includeDescendants
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+      responses:
+        '200':
+          description: Inventario por ubicación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocationInventoryResponse'
+
+  /items:
+    post:
+      tags: [Items]
+      summary: Crear item de inventario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInventoryItemRequest'
+      responses:
+        '200':
+          description: Item creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryCreateResult'
+        '400':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /items/{inventoryItemId}:
+    get:
+      tags: [Items]
+      summary: Detalle de item (HouseDB + Kiwi)
+      description: |
+        Obtiene el item local por `inventory_item_id` y, si existe `object_kiwi_id`,
+        enriquece la respuesta con el objeto remoto de Kiwi.
+      parameters:
+        - $ref: '#/components/parameters/InventoryItemIdPath'
+      responses:
+        '200':
+          description: Detalle combinado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItemDetailResponse'
+        '404':
+          description: Item no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundResponse'
+
+  /item/{inventoryItemId}:
+    get:
+      tags: [Items]
+      deprecated: true
+      summary: Alias legacy de /items/{inventoryItemId}
+      parameters:
+        - $ref: '#/components/parameters/InventoryItemIdPath'
+      responses:
+        '200':
+          description: Detalle combinado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryItemDetailResponse'
+
+  /items/{inventoryItemId}/move:
+    patch:
+      tags: [Items]
+      summary: Mover item de inventario
+      parameters:
+        - $ref: '#/components/parameters/InventoryItemIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MoveInventoryItemRequest'
+      responses:
+        '200':
+          description: Movimiento registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemMovement'
+
+  /items/{inventoryItemId}/timeline:
+    get:
+      tags: [Items]
+      summary: Timeline de movimientos del item
+      parameters:
+        - $ref: '#/components/parameters/InventoryItemIdPath'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+      responses:
+        '200':
+          description: Timeline
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimelineResponse'
+
+  /items/{inventoryItemId}/favorite:
+    put:
+      tags: [Items]
+      summary: Marcar/desmarcar favorito
+      parameters:
+        - $ref: '#/components/parameters/InventoryItemIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetFavoriteRequest'
+      responses:
+        '200':
+          description: Estado de favorito
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FavoriteState'
+
+  /houses:
+    post:
+      tags: [Houses]
+      summary: Crear casa
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateHouseRequest'
+      responses:
+        '200':
+          description: Casa creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HouseCreateResult'
+    get:
+      tags: [Houses]
+      summary: Listar casas de un usuario
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: includeDisabled
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+      responses:
+        '200':
+          description: Lista de casas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HousesResponse'
+
+  /houses/{houseId}/members:
+    get:
+      tags: [Houses]
+      summary: Listar miembros de una casa
+      parameters:
+        - $ref: '#/components/parameters/HouseIdPath'
+        - name: includeDisabled
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+      responses:
+        '200':
+          description: Lista de miembros
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HouseMembersResponse'
+    post:
+      tags: [Houses]
+      summary: Crear/actualizar miembro de una casa
+      parameters:
+        - $ref: '#/components/parameters/HouseIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertHouseMemberRequest'
+      responses:
+        '200':
+          description: Miembro actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HouseMember'
+    put:
+      tags: [Houses]
+      summary: Crear/actualizar miembro de una casa (idempotente)
+      parameters:
+        - $ref: '#/components/parameters/HouseIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertHouseMemberRequest'
+      responses:
+        '200':
+          description: Miembro actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HouseMember'
+
+  /houses/{houseId}/locations:
+    post:
+      tags: [Houses]
+      summary: Crear ubicación de casa (fachada HouseDB -> Kiwi)
+      description: |
+        HouseDB crea la ubicación en Kiwi API y luego persiste el mapeo local.
+      parameters:
+        - $ref: '#/components/parameters/HouseIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateHouseLocationRequest'
+      responses:
+        '200':
+          description: Ubicación creada y sincronizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateHouseLocationResponse'
+
+components:
+  parameters:
+    InventoryItemIdPath:
+      name: inventoryItemId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    HouseIdPath:
+      name: houseId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status, timestamp]
+      properties:
+        status:
+          type: string
+          example: UP
+        timestamp:
+          type: string
+          format: date-time
+
+    CreateInventoryItemRequest:
+      type: object
+      required: [userId, objectId]
+      properties:
+        userId: { type: string, format: uuid }
+        objectId: { type: string, format: uuid }
+        nickname: { type: string }
+        serialNumber: { type: string }
+        conditionStatus: { type: string, example: active }
+        houseLocationLeafId: { type: string, format: uuid }
+        movedBy: { type: string }
+        notes: { type: string }
+
+    MoveInventoryItemRequest:
+      type: object
+      required: [toHouseLocationLeafId]
+      properties:
+        toHouseLocationLeafId: { type: string, format: uuid }
+        movedBy: { type: string }
+        movementReason: { type: string }
+        notes: { type: string }
+
+    SetFavoriteRequest:
+      type: object
+      required: [userId]
+      properties:
+        userId: { type: string, format: uuid }
+        isFavorite: { type: boolean }
+        note: { type: string }
+
+    CreateHouseRequest:
+      type: object
+      required: [ownerUserId, name]
+      properties:
+        ownerUserId: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        street: { type: string }
+        numberExt: { type: string }
+        numberInt: { type: string }
+        neighborhood: { type: string }
+        city: { type: string }
+        state: { type: string }
+        zipCode: { type: string }
+        country: { type: string }
+        latitude: { type: number, format: double }
+        longitude: { type: number, format: double }
+        urlMap: { type: string }
+
+    UpsertHouseMemberRequest:
+      type: object
+      required: [userId]
+      properties:
+        userId: { type: string, format: uuid }
+        role:
+          type: string
+          enum: [owner, family, guest]
+        enabled: { type: boolean }
+
+    CreateHouseLocationRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        parentKiwiLocationId: { type: string, format: uuid }
+        locationKind: { type: string, example: slot }
+        isLeaf: { type: boolean }
+        path: { type: string }
+        referenceCode: { type: string }
+        notes: { type: string }
+        latitude: { type: number, format: double }
+        longitude: { type: number, format: double }
+        enabled: { type: boolean }
+
+    InventoryCreateResult:
+      type: object
+      required: [inventoryItemId]
+      properties:
+        inventoryItemId: { type: string, format: uuid }
+        itemMovementId: { type: string, format: uuid, nullable: true }
+
+    ItemMovement:
+      type: object
+      required: [itemMovementId, inventoryItemId, toHouseLocationLeafId, movedAt]
+      properties:
+        itemMovementId: { type: string, format: uuid }
+        inventoryItemId: { type: string, format: uuid }
+        fromHouseLocationLeafId: { type: string, format: uuid, nullable: true }
+        toHouseLocationLeafId: { type: string, format: uuid }
+        movedAt: { type: string, format: date-time }
+
+    FavoriteState:
+      type: object
+      required: [userId, inventoryItemId, isFavorite]
+      properties:
+        userId: { type: string, format: uuid }
+        inventoryItemId: { type: string, format: uuid }
+        isFavorite: { type: boolean }
+
+    HouseItem:
+      type: object
+      required: [inventoryItemId, objectId, objectName, houseId, houseName, rank]
+      properties:
+        inventoryItemId: { type: string, format: uuid }
+        objectId: { type: string, format: uuid }
+        objectKiwiId: { type: string, format: uuid, nullable: true }
+        objectName: { type: string }
+        objectDescription: { type: string, nullable: true }
+        nickname: { type: string, nullable: true }
+        houseId: { type: string, format: uuid }
+        houseName: { type: string }
+        houseLocationLeafId: { type: string, format: uuid, nullable: true }
+        houseLocationPath: { type: string, nullable: true }
+        rank: { type: number, format: float }
+
+    LocationInventoryItem:
+      type: object
+      required: [inventoryItemId, objectId, objectName]
+      properties:
+        inventoryItemId: { type: string, format: uuid }
+        objectId: { type: string, format: uuid }
+        objectName: { type: string }
+        nickname: { type: string, nullable: true }
+        houseId: { type: string, format: uuid, nullable: true }
+        houseName: { type: string, nullable: true }
+        houseLocationLeafId: { type: string, format: uuid, nullable: true }
+        houseLocationPath: { type: string, nullable: true }
+        assignedAt: { type: string, format: date-time, nullable: true }
+
+    NearbyInventoryItem:
+      type: object
+      required: [inventoryItemId, objectId, objectName, distanceMeters]
+      properties:
+        inventoryItemId: { type: string, format: uuid }
+        objectId: { type: string, format: uuid }
+        objectName: { type: string }
+        houseId: { type: string, format: uuid, nullable: true }
+        houseName: { type: string, nullable: true }
+        houseLocationLeafId: { type: string, format: uuid, nullable: true }
+        houseLocationPath: { type: string, nullable: true }
+        distanceMeters: { type: number, format: double }
+
+    InventoryTimelineEvent:
+      type: object
+      required: [itemMovementId, inventoryItemId, movedAt]
+      properties:
+        itemMovementId: { type: string, format: uuid }
+        inventoryItemId: { type: string, format: uuid }
+        movementReason: { type: string, nullable: true }
+        movedBy: { type: string, nullable: true }
+        movedAt: { type: string, format: date-time }
+        fromHouseLocationLeafId: { type: string, format: uuid, nullable: true }
+        fromHouseLocationPath: { type: string, nullable: true }
+        toHouseLocationLeafId: { type: string, format: uuid, nullable: true }
+        toHouseLocationPath: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+
+    InventoryItemDetail:
+      type: object
+      required: [inventoryItemId, userId, objectId, inventoryItemEnabled]
+      properties:
+        inventoryItemId: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        objectId: { type: string, format: uuid }
+        objectKiwiId: { type: string, format: uuid, nullable: true }
+        nickname: { type: string, nullable: true }
+        serialNumber: { type: string, nullable: true }
+        conditionStatus: { type: string, nullable: true }
+        inventoryItemEnabled: { type: boolean }
+        houseId: { type: string, format: uuid, nullable: true }
+        houseName: { type: string, nullable: true }
+        houseLocationLeafId: { type: string, format: uuid, nullable: true }
+        houseLocationPath: { type: string, nullable: true }
+        assignedAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time, nullable: true }
+
+    HouseCreateResult:
+      type: object
+      required: [houseId, houseMemberId]
+      properties:
+        houseId: { type: string, format: uuid }
+        houseMemberId: { type: string, format: uuid }
+
+    HouseSummary:
+      type: object
+      required: [houseId, name, role, memberEnabled, houseEnabled]
+      properties:
+        houseId: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        city: { type: string, nullable: true }
+        state: { type: string, nullable: true }
+        country: { type: string, nullable: true }
+        role: { type: string, enum: [owner, family, guest] }
+        memberEnabled: { type: boolean }
+        houseEnabled: { type: boolean }
+
+    HouseMember:
+      type: object
+      required: [houseMemberId, houseId, userId, role, enabled]
+      properties:
+        houseMemberId: { type: string, format: uuid }
+        houseId: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        role: { type: string, enum: [owner, family, guest] }
+        enabled: { type: boolean }
+
+    CreateHouseLocationResponse:
+      type: object
+      required: [houseLocationId, kiwiLocationId]
+      properties:
+        houseLocationId: { type: string, format: uuid }
+        kiwiLocationId: { type: string, format: uuid }
+
+    SearchInventoryResponse:
+      type: object
+      required: [items, count]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/HouseItem'
+        count:
+          type: integer
+
+    NearbyInventoryResponse:
+      type: object
+      required: [items, count]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/NearbyInventoryItem'
+        count:
+          type: integer
+
+    LocationInventoryResponse:
+      type: object
+      required: [items, count]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LocationInventoryItem'
+        count:
+          type: integer
+
+    TimelineResponse:
+      type: object
+      required: [events, count]
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/InventoryTimelineEvent'
+        count:
+          type: integer
+
+    InventoryItemDetailResponse:
+      type: object
+      required: [inventoryItem, kiwiStatus]
+      properties:
+        inventoryItem:
+          $ref: '#/components/schemas/InventoryItemDetail'
+        kiwiStatus:
+          type: string
+          enum: [ok, not_found, not_linked]
+        kiwiObject:
+          type: object
+          nullable: true
+          additionalProperties: true
+
+    HousesResponse:
+      type: object
+      required: [houses, count]
+      properties:
+        houses:
+          type: array
+          items:
+            $ref: '#/components/schemas/HouseSummary'
+        count:
+          type: integer
+
+    HouseMembersResponse:
+      type: object
+      required: [members, count]
+      properties:
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/HouseMember'
+        count:
+          type: integer
+
+    ErrorResponse:
+      type: object
+      properties:
+        error: { type: string }
+        message: { type: string }
+        timestamp:
+          type: string
+          format: date-time
+
+    NotFoundResponse:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            path: { type: string }
