@@ -11,13 +11,13 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.util.Callback;
 
-final class ListHousesHandler {
+final class ListHouseIdsHandler {
 
-    private static final Logger LOG = Logger.getLogger(ListHousesHandler.class.getName());
+    private static final Logger LOG = Logger.getLogger(ListHouseIdsHandler.class.getName());
 
     private final HouseService service;
 
-    ListHousesHandler(final HouseService service) {
+    ListHouseIdsHandler(final HouseService service) {
         this.service = service;
     }
 
@@ -29,7 +29,9 @@ final class ListHousesHandler {
 
             final var userId = AuthzSupport.requireTokenUser(request);
             final var houses = service.listUserHouses(userId, includeDisabled, limit);
-            HttpUtil.ok(response, callback, Map.of("houses", houses, "count", houses.size()));
+            final var ids = houses.stream().map(h -> h.houseId()).toList();
+
+            HttpUtil.ok(response, callback, Map.of("houseIds", ids, "count", ids.size()));
         });
     }
 }

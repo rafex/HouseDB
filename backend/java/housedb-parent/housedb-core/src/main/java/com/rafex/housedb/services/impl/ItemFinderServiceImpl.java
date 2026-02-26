@@ -63,7 +63,8 @@ public final class ItemFinderServiceImpl implements ItemFinderService {
 
     @Override
     public InventoryCreateResult createInventoryItem(final UUID userId, final UUID objectId, final String nickname,
-            final String serialNumber, final String conditionStatus, final UUID houseLocationLeafId,
+            final String serialNumber, final String conditionStatus, final String metadataJson,
+            final UUID houseLocationLeafId,
             final String movedBy, final String notes) throws SQLException {
         requireUser(userId);
         if (objectId == null) {
@@ -71,7 +72,7 @@ public final class ItemFinderServiceImpl implements ItemFinderService {
         }
         final var safeStatus = conditionStatus == null || conditionStatus.isBlank() ? "active" : conditionStatus;
         return mapper.toInventoryCreateResult(mutationRepository.createInventoryItem(userId, objectId, nickname,
-                serialNumber, safeStatus, houseLocationLeafId, movedBy, notes));
+                serialNumber, safeStatus, metadataJson, houseLocationLeafId, movedBy, notes));
     }
 
     @Override
@@ -86,6 +87,27 @@ public final class ItemFinderServiceImpl implements ItemFinderService {
         return locationSyncRepository.upsertHouseLocationFromKiwi(houseId, kiwiLocationId, kiwiParentLocationId,
                 parentHouseLocationId, safeKind, name, isLeaf, path, referenceCode, notes, latitude, longitude,
                 enabled);
+    }
+
+    @Override
+    public UUID findKiwiLocationIdByHouseLocationId(final UUID houseLocationId) throws SQLException {
+        if (houseLocationId == null) {
+            throw new IllegalArgumentException("houseLocationId is required");
+        }
+        return locationSyncRepository.findKiwiLocationIdByHouseLocationId(houseLocationId);
+    }
+
+    @Override
+    public UUID upsertObjectFromKiwi(final UUID kiwiObjectId, final String name, final String description,
+            final String category, final String bucketImage, final Boolean enabled) throws SQLException {
+        if (kiwiObjectId == null) {
+            throw new IllegalArgumentException("kiwiObjectId is required");
+        }
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("name is required");
+        }
+        return locationSyncRepository.upsertObjectFromKiwi(kiwiObjectId, name, description, category, bucketImage,
+                enabled == null ? Boolean.TRUE : enabled);
     }
 
     @Override

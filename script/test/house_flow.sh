@@ -24,10 +24,10 @@ Uso: $0 [opciones]
 
 Crea flujo de prueba E2E:
 1) crea usuario por API securizada
-2) crea casa por API (el owner queda miembro)
-3) crea locación en DB para la casa
-4) crea objeto en DB
-5) guarda objeto en inventario por API
+2) autentica usuario (login)
+3) crea casa por API (el owner queda miembro)
+4) crea locación en DB para la casa
+5) guarda objeto en inventario por API (HouseDB crea objeto en Kiwi y lo sincroniza)
 
 Opciones:
   -u BASE_URL          URL base HouseDB (default: $BASE_URL)
@@ -75,26 +75,31 @@ user_json=$("$SOURCE_DIR/create_user.sh" -u "$BASE_URL" -s "$JWT_SECRET" -U "$US
 USER_ID=$(printf '%s' "$user_json" | jq -r '.userId')
 printf 'user_id: %s\n' "$USER_ID"
 
-printf '\n[2/5] Creando casa vía API...\n'
-house_json=$("$SOURCE_DIR/create_house.sh" -u "$BASE_URL" -s "$JWT_SECRET" -o "$USER_ID" -n "$HOUSE_NAME")
+printf '\n[2/5] Autenticando usuario...\n'
+login_json=$("$SOURCE_DIR/login_user.sh" -u "$BASE_URL" -U "$USERNAME" -P "$PASSWORD")
+USER_TOKEN=$(printf '%s' "$login_json" | jq -r '.access_token')
+if [ -z "$USER_TOKEN" ] || [ "$USER_TOKEN" = "null" ]; then
+  echo "Error: no se obtuvo access_token en login." >&2
+  exit 1
+fi
+
+printf '\n[3/5] Creando casa vía API...\n'
+house_json=$("$SOURCE_DIR/create_house.sh" -u "$BASE_URL" -t "$USER_TOKEN" -n "$HOUSE_NAME")
 HOUSE_ID=$(printf '%s' "$house_json" | jq -r '.houseId')
 HOUSE_MEMBER_ID=$(printf '%s' "$house_json" | jq -r '.houseMemberId')
 printf '%s\n' "$house_json" | jq .
 
-printf '\n[3/5] Creando locación en DB para la casa...\n'
+printf '\n[4/5] Creando locación en DB para la casa...\n'
 location_json=$("$SOURCE_DIR/create_house_location_db.sh" -d "$DB_URL" -H "$HOUSE_ID" -L "$LOCATION_NAME")
 HOUSE_LOCATION_ID=$(printf '%s' "$location_json" | jq -r '.houseLocationId')
 printf 'house_location_id: %s\n' "$HOUSE_LOCATION_ID"
 
-printf '\n[4/5] Creando objeto en DB...\n'
-object_json=$("$SOURCE_DIR/create_object_db.sh" -d "$DB_URL" -O "$OBJECT_NAME" -C "$OBJECT_CATEGORY" -D "$OBJECT_DESCRIPTION")
-OBJECT_ID=$(printf '%s' "$object_json" | jq -r '.objectId')
-printf 'object_id: %s\n' "$OBJECT_ID"
-
 printf '\n[5/5] Guardando objeto en inventario vía API...\n'
-item_json=$("$SOURCE_DIR/create_inventory_item.sh" -u "$BASE_URL" -s "$JWT_SECRET" -U "$USER_ID" -O "$OBJECT_ID" -L "$HOUSE_LOCATION_ID" -N "$ITEM_NICKNAME")
+item_json=$("$SOURCE_DIR/create_inventory_item.sh" -u "$BASE_URL" -t "$USER_TOKEN" -L "$HOUSE_LOCATION_ID" -N "$ITEM_NICKNAME" -M "$OBJECT_NAME" -C "$OBJECT_CATEGORY" -D "$OBJECT_DESCRIPTION")
 INVENTORY_ITEM_ID=$(printf '%s' "$item_json" | jq -r '.inventoryItemId // empty')
 ITEM_MOVEMENT_ID=$(printf '%s' "$item_json" | jq -r '.itemMovementId // empty')
+OBJECT_ID=$(printf '%s' "$item_json" | jq -r '.objectId // empty')
+KIWI_OBJECT_ID=$(printf '%s' "$item_json" | jq -r '.kiwiObjectId // empty')
 printf '%s\n' "$item_json" | jq .
 
 printf '\n== Resumen ==\n'
@@ -103,6 +108,7 @@ printf 'house_id: %s\n' "$HOUSE_ID"
 printf 'house_member_id: %s\n' "$HOUSE_MEMBER_ID"
 printf 'house_location_id: %s\n' "$HOUSE_LOCATION_ID"
 printf 'object_id: %s\n' "$OBJECT_ID"
+printf 'kiwi_object_id: %s\n' "$KIWI_OBJECT_ID"
 printf 'inventory_item_id: %s\n' "$INVENTORY_ITEM_ID"
 printf 'item_movement_id: %s\n' "$ITEM_MOVEMENT_ID"
 

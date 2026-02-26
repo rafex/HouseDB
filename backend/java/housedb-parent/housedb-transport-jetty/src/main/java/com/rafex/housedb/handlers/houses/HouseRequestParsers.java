@@ -40,6 +40,18 @@ final class HouseRequestParsers {
         }
     }
 
+    static UUID parseOptionalUuid(final MultiMap<String> params, final String key) {
+        final var value = getValue(params, key);
+        if (value == null) {
+            return null;
+        }
+        try {
+            return UUID.fromString(value);
+        } catch (final IllegalArgumentException e) {
+            throw new IllegalArgumentException(key + " must be a valid UUID");
+        }
+    }
+
     static Integer parseOptionalInt(final MultiMap<String> params, final String key) {
         final var value = getValue(params, key);
         if (value == null) {

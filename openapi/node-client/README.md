@@ -40,9 +40,11 @@ npm run health
 npm run start -- login --username demo --password secret
 npm run start -- token --client-id app1 --client-secret supersecret
 npm run start -- get-item --id UUID
-npm run start -- search-items --user-id UUID --q guantes
-npm run start -- list-houses --user-id UUID
-npm run start -- create-house --owner-user-id UUID --name "Casa CDMX"
+npm run start -- create-item --house-location-leaf-id UUID --object-name "Linterna" --object-category camping --kiwi-metadata '{"source":"housedb"}' --housedb-metadata '{"purchaseDate":"2026-02-26"}'
+npm run start -- search-items --q guantes
+npm run start -- list-houses
+npm run start -- list-house-ids
+npm run start -- create-house --name "Casa CDMX"
 npm run start -- list-house-members --house-id UUID
 npm run start -- upsert-house-member --house-id UUID --user-id UUID --role guest --method PUT
 npm run start -- create-house-location --house-id UUID --name "Closet principal"

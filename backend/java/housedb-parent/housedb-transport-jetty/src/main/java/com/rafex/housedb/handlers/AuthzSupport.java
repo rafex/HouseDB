@@ -38,6 +38,37 @@ public final class AuthzSupport {
         return requestedUserId;
     }
 
+    public static UUID resolveRequestedOrTokenUser(final Request request, final UUID requestedUserId) {
+        Objects.requireNonNull(request, "request");
+        if (requestedUserId != null) {
+            return requireAuthorizedUser(request, requestedUserId);
+        }
+
+        final var auth = requireAuthContext(request);
+        if (isAppToken(auth)) {
+            throw new IllegalArgumentException("userId is required for app token");
+        }
+
+        try {
+            return UUID.fromString(auth.sub());
+        } catch (final IllegalArgumentException e) {
+            throw new SecurityException("token subject is not a valid user id");
+        }
+    }
+
+    public static UUID requireTokenUser(final Request request) {
+        Objects.requireNonNull(request, "request");
+        final var auth = requireAuthContext(request);
+        if (isAppToken(auth)) {
+            throw new SecurityException("forbidden: user token required");
+        }
+        try {
+            return UUID.fromString(auth.sub());
+        } catch (final IllegalArgumentException e) {
+            throw new SecurityException("token subject is not a valid user id");
+        }
+    }
+
     public static void requireAppOrAdmin(final Request request) {
         Objects.requireNonNull(request, "request");
         final var auth = requireAuthContext(request);

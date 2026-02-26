@@ -1,9 +1,6 @@
 package com.rafex.housedb.dtos;
 
-import java.util.UUID;
-
 public record CreateHouseRequest(
-        UUID ownerUserId,
         String name,
         String description,
         String street,

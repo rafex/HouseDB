@@ -25,8 +25,8 @@ final class CreateHouseHandler {
     boolean handle(final Request request, final Response response, final Callback callback) {
         return HouseEndpointSupport.execute(LOG, response, callback, () -> {
             final var body = JsonUtil.MAPPER.readValue(Request.asInputStream(request), CreateHouseRequest.class);
-            AuthzSupport.requireAuthorizedUser(request, body.ownerUserId());
-            final var result = service.createHouse(body.ownerUserId(), body.name(), body.description(), body.street(),
+            final var ownerUserId = AuthzSupport.requireTokenUser(request);
+            final var result = service.createHouse(ownerUserId, body.name(), body.description(), body.street(),
                     body.numberExt(), body.numberInt(), body.neighborhood(), body.city(), body.state(),
                     body.zipCode(), body.country(), body.latitude(), body.longitude(), body.urlMap());
             HttpUtil.ok(response, callback, result);

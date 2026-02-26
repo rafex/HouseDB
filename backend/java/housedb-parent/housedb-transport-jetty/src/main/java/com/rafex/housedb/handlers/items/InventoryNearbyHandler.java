@@ -5,7 +5,6 @@ import com.rafex.housedb.http.HttpUtil;
 import com.rafex.housedb.services.ItemFinderService;
 
 import java.util.Map;
-import java.util.UUID;
 import java.util.logging.Logger;
 
 import org.eclipse.jetty.server.Request;
@@ -25,13 +24,12 @@ final class InventoryNearbyHandler {
     boolean handle(final Request request, final Response response, final Callback callback) {
         return EndpointSupport.execute(LOG, response, callback, () -> {
             final var query = ItemRequestParsers.parseQuery(request.getHttpURI().getQuery());
-            final UUID userId = ItemRequestParsers.parseRequiredUuid(query, "userId");
+            final var userId = AuthzSupport.requireTokenUser(request);
             final double latitude = ItemRequestParsers.parseRequiredDouble(query, "latitude");
             final double longitude = ItemRequestParsers.parseRequiredDouble(query, "longitude");
             final Double radiusMeters = ItemRequestParsers.parseOptionalDouble(query, "radiusMeters");
             final Integer limit = ItemRequestParsers.parseOptionalInt(query, "limit");
 
-            AuthzSupport.requireAuthorizedUser(request, userId);
             final var items = service.searchInventoryItemsNearPoint(userId, latitude, longitude, radiusMeters, limit);
             HttpUtil.ok(response, callback, Map.of("items", items, "count", items.size()));
         });

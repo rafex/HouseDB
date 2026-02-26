@@ -23,7 +23,7 @@ public final class ItemsRouterHandler extends Handler.Abstract {
         searchHandler = new InventorySearchHandler(service);
         nearbyHandler = new InventoryNearbyHandler(service);
         byLocationHandler = new InventoryByLocationHandler(service);
-        createHandler = new InventoryCreateHandler(service);
+        createHandler = new InventoryCreateHandler(service, kiwiApiClient);
         moveHandler = new InventoryMoveHandler(service);
         timelineHandler = new InventoryTimelineHandler(service);
         favoriteHandler = new InventoryFavoriteHandler(service);

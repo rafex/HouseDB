@@ -61,12 +61,17 @@ public final class Main {
         Arrays.fill(password, '\0');
 
         final DataSource ds = Db.dataSource();
-        createUserWithRoles(ds, userId, username, hashResult.hash(), hashResult.salt(), hashResult.iterations(), roles);
+        try {
+            createUserWithRoles(ds, userId, username, hashResult.hash(), hashResult.salt(), hashResult.iterations(),
+                    roles);
 
-        System.out.println("OK: user created");
-        System.out.println("user_id=" + userId);
-        System.out.println("username=" + username);
-        System.out.println("roles=" + roles);
+            System.out.println("OK: user created");
+            System.out.println("user_id=" + userId);
+            System.out.println("username=" + username);
+            System.out.println("roles=" + roles);
+        } finally {
+            closeDataSource(ds);
+        }
     }
 
     private static void createUserWithRoles(final DataSource ds, final UUID userId, final String username,
@@ -162,6 +167,16 @@ public final class Main {
             throw new IllegalArgumentException("missing --" + name);
         }
         return value;
+    }
+
+    private static void closeDataSource(final DataSource ds) {
+        if (ds instanceof AutoCloseable c) {
+            try {
+                c.close();
+            } catch (final Exception ignored) {
+                // Best effort shutdown for CLI process termination.
+            }
+        }
     }
 
     private static void printHelp() {

@@ -5,7 +5,6 @@ import com.rafex.housedb.http.HttpUtil;
 import com.rafex.housedb.services.ItemFinderService;
 
 import java.util.Map;
-import java.util.UUID;
 import java.util.logging.Logger;
 
 import org.eclipse.jetty.server.Request;
@@ -25,13 +24,12 @@ final class InventoryByLocationHandler {
     boolean handle(final Request request, final Response response, final Callback callback) {
         return EndpointSupport.execute(LOG, response, callback, () -> {
             final var query = ItemRequestParsers.parseQuery(request.getHttpURI().getQuery());
-            final UUID userId = ItemRequestParsers.parseRequiredUuid(query, "userId");
-            final UUID houseId = ItemRequestParsers.parseOptionalUuid(query, "houseId");
-            final UUID houseLocationId = ItemRequestParsers.parseOptionalUuid(query, "houseLocationId");
+            final var userId = AuthzSupport.requireTokenUser(request);
+            final var houseId = ItemRequestParsers.parseOptionalUuid(query, "houseId");
+            final var houseLocationId = ItemRequestParsers.parseOptionalUuid(query, "houseLocationId");
             final Boolean includeDescendants = ItemRequestParsers.parseOptionalBoolean(query, "includeDescendants");
             final Integer limit = ItemRequestParsers.parseOptionalInt(query, "limit");
 
-            AuthzSupport.requireAuthorizedUser(request, userId);
             final var items = service.listInventoryByLocation(userId, houseId, houseLocationId, includeDescendants,
                     limit);
             HttpUtil.ok(response, callback, Map.of("items", items, "count", items.size()));

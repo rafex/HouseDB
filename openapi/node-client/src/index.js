@@ -22,13 +22,17 @@ Comandos:
   token --client-id ID --client-secret SECRET [--grant-type client_credentials]
   token-basic --client-id ID --client-secret SECRET
   get-item --id UUID
-  search-items --user-id UUID [--q TEXTO] [--house-id UUID] [--house-location-leaf-id UUID] [--limit N]
-  list-houses --user-id UUID [--include-disabled true|false] [--limit N]
-  create-house --owner-user-id UUID --name NOMBRE [--city CITY] [--state STATE] [--country COUNTRY]
+  create-item --house-location-leaf-id UUID --object-name NOMBRE [--object-category CAT] [--object-description DESC]
+              [--object-type EQUIPMENT] [--object-tags a,b] [--kiwi-metadata JSON] [--housedb-metadata JSON]
+              [--nickname TXT] [--serial-number TXT] [--condition-status active] [--moved-by TXT] [--notes TXT]
+  search-items [--q TEXTO] [--house-id UUID] [--house-location-leaf-id UUID] [--limit N]
+  list-houses [--include-disabled true|false] [--limit N]
+  list-house-ids [--include-disabled true|false] [--limit N]
+  create-house --name NOMBRE [--city CITY] [--state STATE] [--country COUNTRY]
   list-house-members --house-id UUID [--include-disabled true|false] [--limit N]
   upsert-house-member --house-id UUID --user-id UUID [--role owner|family|guest] [--enabled true|false] [--method POST|PUT]
   create-house-location --house-id UUID --name NOMBRE [--parent-kiwi-location-id UUID]
-  demo --user-id UUID
+  demo
 
 Variables de entorno:
   HOUSEDB_BASE_URL  (default: http://localhost:8080)
@@ -39,6 +43,15 @@ Variables de entorno:
 function toBool(value) {
   if (value === undefined || value === "") return undefined;
   return String(value).toLowerCase() === "true";
+}
+
+function parseJsonFlag(value, flagName) {
+  if (!value) return undefined;
+  try {
+    return JSON.parse(value);
+  } catch {
+    throw new Error(`Invalid JSON for ${flagName}`);
+  }
 }
 
 async function main() {
@@ -89,9 +102,35 @@ async function main() {
         res = await client.getItem(argValue("--id"));
         break;
 
+      case "create-item": {
+        const objectTagsRaw = argValue("--object-tags");
+        const objectTags = objectTagsRaw
+          ? objectTagsRaw
+              .split(",")
+              .map((v) => v.trim())
+              .filter(Boolean)
+          : undefined;
+
+        res = await client.createItem({
+          objectName: argValue("--object-name"),
+          objectDescription: argValue("--object-description") || undefined,
+          objectCategory: argValue("--object-category") || undefined,
+          objectType: argValue("--object-type") || undefined,
+          objectTags,
+          kiwiMetadata: parseJsonFlag(argValue("--kiwi-metadata"), "--kiwi-metadata"),
+          housedbMetadata: parseJsonFlag(argValue("--housedb-metadata"), "--housedb-metadata"),
+          nickname: argValue("--nickname") || undefined,
+          serialNumber: argValue("--serial-number") || undefined,
+          conditionStatus: argValue("--condition-status") || undefined,
+          houseLocationLeafId: argValue("--house-location-leaf-id"),
+          movedBy: argValue("--moved-by") || undefined,
+          notes: argValue("--notes") || undefined
+        });
+        break;
+      }
+
       case "search-items":
         res = await client.searchItems({
-          userId: argValue("--user-id"),
           q: argValue("--q") || undefined,
           houseId: argValue("--house-id") || undefined,
           houseLocationLeafId: argValue("--house-location-leaf-id") || undefined,
@@ -101,7 +140,13 @@ async function main() {
 
       case "list-houses":
         res = await client.listHouses({
-          userId: argValue("--user-id"),
+          includeDisabled: toBool(argValue("--include-disabled")),
+          limit: argValue("--limit") ? Number(argValue("--limit")) : undefined
+        });
+        break;
+
+      case "list-house-ids":
+        res = await client.listHouseIds({
           includeDisabled: toBool(argValue("--include-disabled")),
           limit: argValue("--limit") ? Number(argValue("--limit")) : undefined
         });
@@ -109,7 +154,6 @@ async function main() {
 
       case "create-house":
         res = await client.createHouse({
-          ownerUserId: argValue("--owner-user-id"),
           name: argValue("--name"),
           city: argValue("--city") || undefined,
           state: argValue("--state") || undefined,
@@ -144,10 +188,10 @@ async function main() {
         break;
 
       case "demo": {
-        const userId = argValue("--user-id");
         const health = await client.health();
-        const houses = userId ? await client.listHouses({ userId }) : null;
-        printJson({ health: health.data, houses: houses?.data || null, baseUrl: client.baseUrl });
+        const houses = await client.listHouses();
+        const houseIds = await client.listHouseIds();
+        printJson({ health: health.data, houses: houses.data, houseIds: houseIds.data, baseUrl: client.baseUrl });
         return;
       }
 

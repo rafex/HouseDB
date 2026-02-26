@@ -13,7 +13,8 @@ public interface InventoryMutationRepository {
             String movementReason, String notes) throws SQLException;
 
     InventoryCreateResultEntity createInventoryItem(UUID userId, UUID objectId, String nickname, String serialNumber,
-            String conditionStatus, UUID houseLocationLeafId, String movedBy, String notes) throws SQLException;
+            String conditionStatus, String metadataJson, UUID houseLocationLeafId, String movedBy, String notes)
+            throws SQLException;
 
     FavoriteStateEntity setFavoriteItem(UUID userId, UUID inventoryItemId, Boolean isFavorite, String note)
             throws SQLException;

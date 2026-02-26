@@ -97,26 +97,38 @@ export class HouseDbClient {
     });
   }
 
-  searchItems({ userId, q, houseId, houseLocationLeafId, limit }) {
+  searchItems({ q, houseId, houseLocationLeafId, limit }) {
     const params = new URLSearchParams();
-    if (userId) params.set("userId", userId);
     if (q) params.set("q", q);
     if (houseId) params.set("houseId", houseId);
     if (houseLocationLeafId) params.set("houseLocationLeafId", houseLocationLeafId);
     if (limit !== undefined) params.set("limit", String(limit));
-    return this.request(`/items/search?${params.toString()}`);
+    const query = params.toString();
+    return this.request(`/items/search${query ? `?${query}` : ""}`);
   }
 
   getItem(inventoryItemId) {
     return this.request(`/items/${inventoryItemId}`);
   }
 
-  listHouses({ userId, includeDisabled, limit }) {
+  createItem(payload) {
+    return this.request("/items", { method: "POST", body: payload });
+  }
+
+  listHouses({ includeDisabled, limit } = {}) {
     const params = new URLSearchParams();
-    if (userId) params.set("userId", userId);
     if (includeDisabled !== undefined) params.set("includeDisabled", String(includeDisabled));
     if (limit !== undefined) params.set("limit", String(limit));
-    return this.request(`/houses?${params.toString()}`);
+    const query = params.toString();
+    return this.request(`/houses${query ? `?${query}` : ""}`);
+  }
+
+  listHouseIds({ includeDisabled, limit } = {}) {
+    const params = new URLSearchParams();
+    if (includeDisabled !== undefined) params.set("includeDisabled", String(includeDisabled));
+    if (limit !== undefined) params.set("limit", String(limit));
+    const query = params.toString();
+    return this.request(`/houses/ids${query ? `?${query}` : ""}`);
   }
 
   createHouse(payload) {

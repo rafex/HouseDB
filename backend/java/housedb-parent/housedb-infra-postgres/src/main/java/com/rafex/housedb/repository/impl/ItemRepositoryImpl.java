@@ -56,13 +56,45 @@ public final class ItemRepositoryImpl
     private static final String SQL_CREATE = """
             SELECT inventory_item_id,
                    item_movement_id
-              FROM api_create_inventory_item(?, ?, ?, ?, ?::inventory_item_status, ?, ?, ?)
+              FROM api_create_inventory_item(?, ?, ?, ?, ?::inventory_item_status, ?::jsonb, ?, ?, ?)
             """;
 
     private static final String SQL_UPSERT_KIWI_LOCATION = """
             SELECT api_upsert_house_location_from_kiwi(
               ?, ?, ?, ?, ?::location_kind, ?, ?, ?, ?, ?, ?, ?, ?
             ) AS house_location_id
+            """;
+    private static final String SQL_FIND_KIWI_LOCATION_ID = """
+            SELECT kiwi_location_id
+            FROM house_locations
+            WHERE house_location_id = ?
+              AND enabled = TRUE
+            LIMIT 1
+            """;
+    private static final String SQL_UPSERT_OBJECT_FROM_KIWI = """
+            INSERT INTO objects (
+              object_kiwi_id,
+              name,
+              description,
+              category,
+              bucket_image,
+              enabled
+            ) VALUES (
+              ?::uuid,
+              ?::text,
+              NULLIF(btrim(?::text), ''),
+              NULLIF(btrim(?::text), ''),
+              NULLIF(btrim(?::text), ''),
+              COALESCE(?::boolean, TRUE)
+            )
+            ON CONFLICT (object_kiwi_id)
+            DO UPDATE SET
+              name = EXCLUDED.name,
+              description = EXCLUDED.description,
+              category = EXCLUDED.category,
+              bucket_image = EXCLUDED.bucket_image,
+              enabled = EXCLUDED.enabled
+            RETURNING object_id
             """;
 
     private static final String SQL_LIST_BY_LOCATION = """
@@ -198,7 +230,7 @@ public final class ItemRepositoryImpl
 
     @Override
     public InventoryCreateResultEntity createInventoryItem(final UUID userId, final UUID objectId,
-            final String nickname, final String serialNumber, final String conditionStatus,
+            final String nickname, final String serialNumber, final String conditionStatus, final String metadataJson,
             final UUID houseLocationLeafId, final String movedBy, final String notes) throws SQLException {
         try (Connection connection = dataSource.getConnection();
                 PreparedStatement ps = connection.prepareStatement(SQL_CREATE)) {
@@ -207,9 +239,10 @@ public final class ItemRepositoryImpl
             ps.setString(3, nickname);
             ps.setString(4, serialNumber);
             ps.setString(5, conditionStatus);
-            ps.setObject(6, houseLocationLeafId);
-            ps.setString(7, movedBy);
-            ps.setString(8, notes);
+            ps.setString(6, metadataJson);
+            ps.setObject(7, houseLocationLeafId);
+            ps.setString(8, movedBy);
+            ps.setString(9, notes);
 
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) {
@@ -249,6 +282,41 @@ public final class ItemRepositoryImpl
                     throw new SQLException("api_upsert_house_location_from_kiwi returned no rows");
                 }
                 return rs.getObject("house_location_id", UUID.class);
+            }
+        }
+    }
+
+    @Override
+    public UUID findKiwiLocationIdByHouseLocationId(final UUID houseLocationId) throws SQLException {
+        try (Connection connection = dataSource.getConnection();
+                PreparedStatement ps = connection.prepareStatement(SQL_FIND_KIWI_LOCATION_ID)) {
+            ps.setObject(1, houseLocationId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    return null;
+                }
+                return rs.getObject("kiwi_location_id", UUID.class);
+            }
+        }
+    }
+
+    @Override
+    public UUID upsertObjectFromKiwi(final UUID kiwiObjectId, final String name, final String description,
+            final String category, final String bucketImage, final Boolean enabled) throws SQLException {
+        try (Connection connection = dataSource.getConnection();
+                PreparedStatement ps = connection.prepareStatement(SQL_UPSERT_OBJECT_FROM_KIWI)) {
+            ps.setObject(1, kiwiObjectId);
+            ps.setString(2, name);
+            ps.setString(3, description);
+            ps.setString(4, category);
+            ps.setString(5, bucketImage);
+            ps.setObject(6, enabled);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    throw new SQLException("upsert object from kiwi returned no rows");
+                }
+                return rs.getObject("object_id", UUID.class);
             }
         }
     }

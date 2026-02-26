@@ -22,11 +22,17 @@ public interface ItemFinderService {
             String movementReason, String notes) throws SQLException;
 
     InventoryCreateResult createInventoryItem(UUID userId, UUID objectId, String nickname, String serialNumber,
-            String conditionStatus, UUID houseLocationLeafId, String movedBy, String notes) throws SQLException;
+            String conditionStatus, String metadataJson, UUID houseLocationLeafId, String movedBy, String notes)
+            throws SQLException;
 
     UUID upsertHouseLocationFromKiwi(UUID houseId, UUID kiwiLocationId, UUID kiwiParentLocationId,
             UUID parentHouseLocationId, String locationKind, String name, Boolean isLeaf, String path,
             String referenceCode, String notes, Double latitude, Double longitude, Boolean enabled) throws SQLException;
+
+    UUID findKiwiLocationIdByHouseLocationId(UUID houseLocationId) throws SQLException;
+
+    UUID upsertObjectFromKiwi(UUID kiwiObjectId, String name, String description, String category, String bucketImage,
+            Boolean enabled) throws SQLException;
 
     List<LocationInventoryItem> listInventoryByLocation(UUID userId, UUID houseId, UUID houseLocationId,
             Boolean includeDescendants, Integer limit) throws SQLException;

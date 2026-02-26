@@ -14,6 +14,7 @@ public final class HousesRouterHandler extends Handler.Abstract {
     private final CreateHouseHandler createHouseHandler;
     private final UpsertHouseMemberHandler upsertHouseMemberHandler;
     private final ListHousesHandler listHousesHandler;
+    private final ListHouseIdsHandler listHouseIdsHandler;
     private final ListHouseMembersHandler listHouseMembersHandler;
     private final CreateHouseLocationHandler createHouseLocationHandler;
 
@@ -22,6 +23,7 @@ public final class HousesRouterHandler extends Handler.Abstract {
         createHouseHandler = new CreateHouseHandler(houseService);
         upsertHouseMemberHandler = new UpsertHouseMemberHandler(houseService);
         listHousesHandler = new ListHousesHandler(houseService);
+        listHouseIdsHandler = new ListHouseIdsHandler(houseService);
         listHouseMembersHandler = new ListHouseMembersHandler(houseService);
         createHouseLocationHandler = new CreateHouseLocationHandler(kiwiApiClient, itemService);
     }
@@ -36,6 +38,9 @@ public final class HousesRouterHandler extends Handler.Abstract {
         }
         if ("GET".equals(method) && "/houses".equals(path)) {
             return listHousesHandler.handle(request, response, callback);
+        }
+        if ("GET".equals(method) && "/houses/ids".equals(path)) {
+            return listHouseIdsHandler.handle(request, response, callback);
         }
 
         if (("POST".equals(method) || "PUT".equals(method))

@@ -21,7 +21,22 @@ public final class HouseRepositoryImpl implements HouseManagementRepository {
     private static final String SQL_CREATE_HOUSE = """
             SELECT house_id,
                    house_member_id
-              FROM api_create_house(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              FROM api_create_house(
+                   ?::uuid,
+                   ?::text,
+                   ?::text,
+                   ?::text,
+                   ?::text,
+                   ?::text,
+                   ?::text,
+                   ?::text,
+                   ?::text,
+                   ?::text,
+                   ?::text,
+                   ?::numeric,
+                   ?::numeric,
+                   ?::text
+              )
             """;
 
     private static final String SQL_UPSERT_HOUSE_MEMBER = """

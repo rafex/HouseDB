@@ -26,8 +26,8 @@ final class InventoryFavoriteHandler {
     boolean handle(final Request request, final Response response, final Callback callback, final UUID inventoryItemId) {
         return EndpointSupport.execute(LOG, response, callback, () -> {
             final var body = JsonUtil.MAPPER.readValue(Request.asInputStream(request), SetFavoriteRequest.class);
-            AuthzSupport.requireAuthorizedUser(request, body.userId());
-            final var state = service.setFavoriteItem(body.userId(), inventoryItemId, body.isFavorite(), body.note());
+            final var userId = AuthzSupport.requireTokenUser(request);
+            final var state = service.setFavoriteItem(userId, inventoryItemId, body.isFavorite(), body.note());
             HttpUtil.ok(response, callback, state);
         });
     }

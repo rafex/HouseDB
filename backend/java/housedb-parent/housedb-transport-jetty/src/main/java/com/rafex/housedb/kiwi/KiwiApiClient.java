@@ -9,6 +9,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -105,5 +107,70 @@ public final class KiwiApiClient {
                     "Kiwi API error fetching object: HTTP " + response.statusCode());
         }
         return JsonUtil.MAPPER.readTree(response.body());
+    }
+
+    public UUID createObject(final String name, final String description, final UUID locationId, final String type,
+            final Collection<String> tags, final Object metadata)
+            throws IOException, InterruptedException {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("name is required");
+        }
+        if (locationId == null) {
+            throw new IllegalArgumentException("locationId is required");
+        }
+        if (bearerToken == null || bearerToken.isBlank()) {
+            throw new IllegalStateException("KIWI_API_TOKEN is required");
+        }
+
+        final String endpoint = baseUrl.endsWith("/") ? baseUrl + "objects" : baseUrl + "/objects";
+        final var json = JsonUtil.MAPPER.createObjectNode();
+        json.put("name", name);
+        if (description != null && !description.isBlank()) {
+            json.put("description", description);
+        }
+        json.put("type", type == null || type.isBlank() ? "EQUIPMENT" : type.trim());
+        json.put("locationId", locationId.toString());
+
+        if (tags != null && !tags.isEmpty()) {
+            final var cleanTags = new ArrayList<String>();
+            for (final var tag : tags) {
+                if (tag == null) {
+                    continue;
+                }
+                final var v = tag.trim();
+                if (!v.isBlank()) {
+                    cleanTags.add(v);
+                }
+            }
+            if (!cleanTags.isEmpty()) {
+                json.putPOJO("tags", cleanTags);
+            }
+        }
+
+        if (metadata != null) {
+            json.set("metadata", JsonUtil.MAPPER.valueToTree(metadata));
+        }
+
+        final var body = JsonUtil.MAPPER.writeValueAsString(json);
+        final var request = HttpRequest.newBuilder()
+                .uri(URI.create(endpoint))
+                .timeout(Duration.ofSeconds(10))
+                .header("Authorization", "Bearer " + bearerToken)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+
+        final var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            throw new KiwiApiException(response.statusCode(),
+                    "Kiwi API error creating object: HTTP " + response.statusCode());
+        }
+
+        final JsonNode responseJson = JsonUtil.MAPPER.readTree(response.body());
+        final JsonNode objectIdNode = responseJson.get("object_id");
+        if (objectIdNode == null || objectIdNode.asText().isBlank()) {
+            throw new IllegalStateException("Kiwi API response missing object_id");
+        }
+        return UUID.fromString(objectIdNode.asText());
     }
 }
