@@ -1,6 +1,7 @@
 package com.rafex.housedb.handlers.items;
 
 import com.rafex.housedb.dtos.CreateInventoryItemRequest;
+import com.rafex.housedb.handlers.AuthzSupport;
 import com.rafex.housedb.http.HttpUtil;
 import com.rafex.housedb.json.JsonUtil;
 import com.rafex.housedb.services.ItemFinderService;
@@ -24,6 +25,7 @@ final class InventoryCreateHandler {
     boolean handle(final Request request, final Response response, final Callback callback) {
         return EndpointSupport.execute(LOG, response, callback, () -> {
             final var body = JsonUtil.MAPPER.readValue(Request.asInputStream(request), CreateInventoryItemRequest.class);
+            AuthzSupport.requireAuthorizedUser(request, body.userId());
             final var result = service.createInventoryItem(body.userId(), body.objectId(), body.nickname(),
                     body.serialNumber(), body.conditionStatus(), body.houseLocationLeafId(), body.movedBy(),
                     body.notes());

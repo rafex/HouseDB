@@ -1,6 +1,7 @@
 package com.rafex.housedb.handlers.items;
 
 import com.rafex.housedb.dtos.SetFavoriteRequest;
+import com.rafex.housedb.handlers.AuthzSupport;
 import com.rafex.housedb.http.HttpUtil;
 import com.rafex.housedb.json.JsonUtil;
 import com.rafex.housedb.services.ItemFinderService;
@@ -25,6 +26,7 @@ final class InventoryFavoriteHandler {
     boolean handle(final Request request, final Response response, final Callback callback, final UUID inventoryItemId) {
         return EndpointSupport.execute(LOG, response, callback, () -> {
             final var body = JsonUtil.MAPPER.readValue(Request.asInputStream(request), SetFavoriteRequest.class);
+            AuthzSupport.requireAuthorizedUser(request, body.userId());
             final var state = service.setFavoriteItem(body.userId(), inventoryItemId, body.isFavorite(), body.note());
             HttpUtil.ok(response, callback, state);
         });

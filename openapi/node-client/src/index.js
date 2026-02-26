@@ -17,6 +17,10 @@ Uso:
 
 Comandos:
   health
+  login --username USER --password PASS
+  login-basic --username USER --password PASS
+  token --client-id ID --client-secret SECRET [--grant-type client_credentials]
+  token-basic --client-id ID --client-secret SECRET
   get-item --id UUID
   search-items --user-id UUID [--q TEXTO] [--house-id UUID] [--house-location-leaf-id UUID] [--limit N]
   list-houses --user-id UUID [--include-disabled true|false] [--limit N]
@@ -56,6 +60,29 @@ async function main() {
     switch (command) {
       case "health":
         res = await client.health();
+        break;
+
+      case "login":
+        res = await client.login({
+          username: argValue("--username"),
+          password: argValue("--password")
+        });
+        break;
+
+      case "login-basic":
+        res = await client.loginWithBasic(argValue("--username"), argValue("--password"));
+        break;
+
+      case "token":
+        res = await client.clientToken({
+          clientId: argValue("--client-id"),
+          clientSecret: argValue("--client-secret"),
+          grantType: argValue("--grant-type", "client_credentials") || "client_credentials"
+        });
+        break;
+
+      case "token-basic":
+        res = await client.clientTokenWithBasic(argValue("--client-id"), argValue("--client-secret"));
         break;
 
       case "get-item":

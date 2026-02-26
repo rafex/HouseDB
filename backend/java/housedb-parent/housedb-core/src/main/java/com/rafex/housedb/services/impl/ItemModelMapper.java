@@ -27,7 +27,7 @@ final class ItemModelMapper {
 
     HouseItem toHouseItem(final HouseItemEntity source) {
         return new HouseItem(source.inventoryItemId(), source.objectId(), source.objectKiwiId(), source.objectName(),
-                source.objectDescription(), source.nickname(), source.houseId(), source.houseName(),
+                source.objectDescription(), source.objectCategory(), source.nickname(), source.houseId(), source.houseName(),
                 source.houseLocationLeafId(), source.houseLocationPath(), source.rank());
     }
 

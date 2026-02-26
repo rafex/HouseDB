@@ -1,14 +1,23 @@
 package com.rafex.housedb.bootstrap;
 
 import com.rafex.housedb.db.Db;
-import com.rafex.housedb.repository.HouseManagementRepository;
+import com.rafex.housedb.repository.AppClientRepository;
 import com.rafex.housedb.repository.HouseLocationSyncRepository;
+import com.rafex.housedb.repository.HouseManagementRepository;
 import com.rafex.housedb.repository.InventoryMutationRepository;
 import com.rafex.housedb.repository.InventorySearchRepository;
+import com.rafex.housedb.repository.UserRepository;
+import com.rafex.housedb.repository.impl.AppClientRepositoryImpl;
 import com.rafex.housedb.repository.impl.HouseRepositoryImpl;
 import com.rafex.housedb.repository.impl.ItemRepositoryImpl;
+import com.rafex.housedb.repository.impl.UserRepositoryImpl;
+import com.rafex.housedb.security.PasswordHasherPBKDF2;
+import com.rafex.housedb.services.AppClientAuthService;
+import com.rafex.housedb.services.AuthService;
 import com.rafex.housedb.services.HouseService;
 import com.rafex.housedb.services.ItemFinderService;
+import com.rafex.housedb.services.impl.AppClientAuthServiceImpl;
+import com.rafex.housedb.services.impl.AuthServiceImpl;
 import com.rafex.housedb.services.impl.HouseServiceImpl;
 import com.rafex.housedb.services.impl.ItemFinderServiceImpl;
 
@@ -26,7 +35,12 @@ public final class HouseDbContainer {
             Optional<Supplier<HouseLocationSyncRepository>> houseLocationSyncRepository,
             Optional<Supplier<ItemFinderService>> itemFinderService,
             Optional<Supplier<HouseManagementRepository>> houseManagementRepository,
-            Optional<Supplier<HouseService>> houseService) {
+            Optional<Supplier<HouseService>> houseService,
+            Optional<Supplier<UserRepository>> userRepository,
+            Optional<Supplier<AppClientRepository>> appClientRepository,
+            Optional<Supplier<AuthService>> authService,
+            Optional<Supplier<AppClientAuthService>> appClientAuthService,
+            Optional<Supplier<PasswordHasherPBKDF2>> passwordHasherPBKDF2) {
         public Overrides {
             config = config != null ? config : Optional.empty();
             dataSource = dataSource != null ? dataSource : Optional.empty();
@@ -42,6 +56,11 @@ public final class HouseDbContainer {
                     ? houseManagementRepository
                     : Optional.empty();
             houseService = houseService != null ? houseService : Optional.empty();
+            userRepository = userRepository != null ? userRepository : Optional.empty();
+            appClientRepository = appClientRepository != null ? appClientRepository : Optional.empty();
+            authService = authService != null ? authService : Optional.empty();
+            appClientAuthService = appClientAuthService != null ? appClientAuthService : Optional.empty();
+            passwordHasherPBKDF2 = passwordHasherPBKDF2 != null ? passwordHasherPBKDF2 : Optional.empty();
         }
 
         public static Builder builder() {
@@ -58,6 +77,11 @@ public final class HouseDbContainer {
             private Supplier<ItemFinderService> itemFinderService;
             private Supplier<HouseManagementRepository> houseManagementRepository;
             private Supplier<HouseService> houseService;
+            private Supplier<UserRepository> userRepository;
+            private Supplier<AppClientRepository> appClientRepository;
+            private Supplier<AuthService> authService;
+            private Supplier<AppClientAuthService> appClientAuthService;
+            private Supplier<PasswordHasherPBKDF2> passwordHasherPBKDF2;
 
             public Builder config(final Supplier<HouseDbConfig> value) {
                 config = value;
@@ -99,11 +123,39 @@ public final class HouseDbContainer {
                 return this;
             }
 
+            public Builder userRepository(final Supplier<UserRepository> value) {
+                userRepository = value;
+                return this;
+            }
+
+            public Builder appClientRepository(final Supplier<AppClientRepository> value) {
+                appClientRepository = value;
+                return this;
+            }
+
+            public Builder authService(final Supplier<AuthService> value) {
+                authService = value;
+                return this;
+            }
+
+            public Builder appClientAuthService(final Supplier<AppClientAuthService> value) {
+                appClientAuthService = value;
+                return this;
+            }
+
+            public Builder passwordHasherPBKDF2(final Supplier<PasswordHasherPBKDF2> value) {
+                passwordHasherPBKDF2 = value;
+                return this;
+            }
+
             public Overrides build() {
                 return new Overrides(Optional.ofNullable(config), Optional.ofNullable(dataSource),
                         Optional.ofNullable(inventorySearchRepository), Optional.ofNullable(inventoryMutationRepository),
                         Optional.ofNullable(houseLocationSyncRepository), Optional.ofNullable(itemFinderService),
-                        Optional.ofNullable(houseManagementRepository), Optional.ofNullable(houseService));
+                        Optional.ofNullable(houseManagementRepository), Optional.ofNullable(houseService),
+                        Optional.ofNullable(userRepository), Optional.ofNullable(appClientRepository),
+                        Optional.ofNullable(authService), Optional.ofNullable(appClientAuthService),
+                        Optional.ofNullable(passwordHasherPBKDF2));
             }
         }
     }
@@ -118,6 +170,11 @@ public final class HouseDbContainer {
     private final Lazy<HouseManagementRepository> houseManagementRepository;
     private final Lazy<HouseService> houseService;
     private final Lazy<HouseRepositoryImpl> houseRepository;
+    private final Lazy<UserRepository> userRepository;
+    private final Lazy<AppClientRepository> appClientRepository;
+    private final Lazy<PasswordHasherPBKDF2> passwordHasherPBKDF2;
+    private final Lazy<AuthService> authService;
+    private final Lazy<AppClientAuthService> appClientAuthService;
 
     public HouseDbContainer() {
         this(Overrides.builder().build());
@@ -131,20 +188,24 @@ public final class HouseDbContainer {
         itemRepository = new Lazy<>(() -> new ItemRepositoryImpl(dataSource()));
         houseRepository = new Lazy<>(() -> new HouseRepositoryImpl(dataSource()));
 
-        inventorySearchRepository = new Lazy<>(select(overrides.inventorySearchRepository(),
-                this::itemRepository));
-        inventoryMutationRepository = new Lazy<>(select(overrides.inventoryMutationRepository(),
-                this::itemRepository));
-        houseLocationSyncRepository = new Lazy<>(select(overrides.houseLocationSyncRepository(),
-                this::itemRepository));
+        inventorySearchRepository = new Lazy<>(select(overrides.inventorySearchRepository(), this::itemRepository));
+        inventoryMutationRepository = new Lazy<>(select(overrides.inventoryMutationRepository(), this::itemRepository));
+        houseLocationSyncRepository = new Lazy<>(select(overrides.houseLocationSyncRepository(), this::itemRepository));
 
         itemFinderService = new Lazy<>(select(overrides.itemFinderService(),
                 () -> new ItemFinderServiceImpl(inventorySearchRepository(), inventoryMutationRepository(),
                         houseLocationSyncRepository())));
-        houseManagementRepository = new Lazy<>(select(overrides.houseManagementRepository(),
-                this::houseRepository));
-        houseService = new Lazy<>(select(overrides.houseService(),
-                () -> new HouseServiceImpl(houseManagementRepository())));
+        houseManagementRepository = new Lazy<>(select(overrides.houseManagementRepository(), this::houseRepository));
+        houseService = new Lazy<>(select(overrides.houseService(), () -> new HouseServiceImpl(houseManagementRepository())));
+
+        userRepository = new Lazy<>(select(overrides.userRepository(), () -> new UserRepositoryImpl(dataSource())));
+        appClientRepository = new Lazy<>(
+                select(overrides.appClientRepository(), () -> new AppClientRepositoryImpl(dataSource())));
+        passwordHasherPBKDF2 = new Lazy<>(select(overrides.passwordHasherPBKDF2(),
+                () -> new PasswordHasherPBKDF2(Integer.parseInt(System.getenv().getOrDefault("AUTH_HASH_BYTES", "32")))));
+        authService = new Lazy<>(select(overrides.authService(), () -> new AuthServiceImpl(userRepository(), passwordHasherPBKDF2())));
+        appClientAuthService = new Lazy<>(
+                select(overrides.appClientAuthService(), () -> new AppClientAuthServiceImpl(appClientRepository(), passwordHasherPBKDF2())));
     }
 
     public HouseDbConfig config() {
@@ -187,6 +248,26 @@ public final class HouseDbContainer {
         return houseService.get();
     }
 
+    public UserRepository userRepository() {
+        return userRepository.get();
+    }
+
+    public AppClientRepository appClientRepository() {
+        return appClientRepository.get();
+    }
+
+    public PasswordHasherPBKDF2 passwordHasherPBKDF2() {
+        return passwordHasherPBKDF2.get();
+    }
+
+    public AuthService authService() {
+        return authService.get();
+    }
+
+    public AppClientAuthService appClientAuthService() {
+        return appClientAuthService.get();
+    }
+
     public void warmup() {
         config();
         dataSource();
@@ -196,6 +277,10 @@ public final class HouseDbContainer {
         itemFinderService();
         houseManagementRepository();
         houseService();
+        userRepository();
+        appClientRepository();
+        authService();
+        appClientAuthService();
     }
 
     private static <T> Supplier<T> select(final Optional<Supplier<T>> override, final Supplier<T> def) {

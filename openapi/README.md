@@ -14,4 +14,5 @@ Este directorio documenta la API REST de HouseDB.
 ## Nota
 
 La especificación refleja los endpoints actuales del backend Jetty en HouseDB,
-incluyendo la fachada de integración con Kiwi (sin exponer endpoints de Kiwi directamente).
+incluyendo autenticación JWT (`/auth/login`, `/auth/token`) y la fachada de integración
+con Kiwi (sin exponer endpoints de Kiwi directamente).

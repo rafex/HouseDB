@@ -53,6 +53,50 @@ export class HouseDbClient {
     return this.request("/health");
   }
 
+  login({ username, password } = {}) {
+    const payload = username || password ? { username, password } : undefined;
+    return this.request("/auth/login", {
+      method: "POST",
+      body: payload,
+      token: ""
+    });
+  }
+
+  loginWithBasic(username, password) {
+    const basic = Buffer.from(`${username}:${password}`).toString("base64");
+    return this.request("/auth/login", {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${basic}`
+      },
+      token: ""
+    });
+  }
+
+  clientToken({ clientId, clientSecret, grantType = "client_credentials" } = {}) {
+    return this.request("/auth/token", {
+      method: "POST",
+      body: {
+        client_id: clientId,
+        client_secret: clientSecret,
+        grant_type: grantType
+      },
+      token: ""
+    });
+  }
+
+  clientTokenWithBasic(clientId, clientSecret) {
+    const basic = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+    return this.request("/auth/token", {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${basic}`
+      },
+      body: { grant_type: "client_credentials" },
+      token: ""
+    });
+  }
+
   searchItems({ userId, q, houseId, houseLocationLeafId, limit }) {
     const params = new URLSearchParams();
     if (userId) params.set("userId", userId);

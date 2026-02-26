@@ -1,5 +1,6 @@
 package com.rafex.housedb.handlers.items;
 
+import com.rafex.housedb.handlers.AuthzSupport;
 import com.rafex.housedb.http.HttpUtil;
 import com.rafex.housedb.services.ItemFinderService;
 
@@ -30,6 +31,7 @@ final class InventorySearchHandler {
             final UUID houseLocationLeafId = ItemRequestParsers.parseOptionalUuid(query, "houseLocationLeafId");
             final Integer limit = ItemRequestParsers.parseOptionalInt(query, "limit");
 
+            AuthzSupport.requireAuthorizedUser(request, userId);
             final var items = service.searchInventoryItems(userId, text, houseId, houseLocationLeafId, limit);
             HttpUtil.ok(response, callback, Map.of("items", items, "count", items.size()));
         });

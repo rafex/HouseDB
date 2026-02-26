@@ -39,6 +39,16 @@ public final class HttpUtil {
                 Map.of("error", "bad_request", "message", message, "timestamp", Instant.now().toString()));
     }
 
+    public static void unauthorized(final Response response, final Callback callback, final String code) {
+        json(response, callback, HttpStatus.UNAUTHORIZED_401,
+                Map.of("error", "unauthorized", "code", code, "timestamp", Instant.now().toString()));
+    }
+
+    public static void forbidden(final Response response, final Callback callback, final String code) {
+        json(response, callback, HttpStatus.FORBIDDEN_403,
+                Map.of("error", "forbidden", "code", code, "timestamp", Instant.now().toString()));
+    }
+
     public static void internalServerError(final Response response, final Callback callback, final String message) {
         json(response, callback, HttpStatus.INTERNAL_SERVER_ERROR_500,
                 Map.of("error", "internal_server_error", "message", message,

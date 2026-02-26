@@ -8,6 +8,7 @@ public record HouseItemEntity(
         UUID objectKiwiId,
         String objectName,
         String objectDescription,
+        String objectCategory,
         String nickname,
         UUID houseId,
         String houseName,

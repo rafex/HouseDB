@@ -23,6 +23,9 @@ final class EndpointSupport {
         try {
             action.run();
             return true;
+        } catch (final SecurityException e) {
+            HttpUtil.forbidden(response, callback, e.getMessage());
+            return true;
         } catch (final IllegalArgumentException e) {
             HttpUtil.badRequest(response, callback, e.getMessage());
             return true;

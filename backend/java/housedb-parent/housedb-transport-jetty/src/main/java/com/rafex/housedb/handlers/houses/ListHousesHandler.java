@@ -1,5 +1,6 @@
 package com.rafex.housedb.handlers.houses;
 
+import com.rafex.housedb.handlers.AuthzSupport;
 import com.rafex.housedb.http.HttpUtil;
 import com.rafex.housedb.services.HouseService;
 
@@ -27,6 +28,7 @@ final class ListHousesHandler {
             final var includeDisabled = HouseRequestParsers.parseOptionalBoolean(query, "includeDisabled");
             final var limit = HouseRequestParsers.parseOptionalInt(query, "limit");
 
+            AuthzSupport.requireAuthorizedUser(request, userId);
             final var houses = service.listUserHouses(userId, includeDisabled, limit);
             HttpUtil.ok(response, callback, Map.of("houses", houses, "count", houses.size()));
         });

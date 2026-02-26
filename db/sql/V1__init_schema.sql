@@ -106,7 +106,7 @@ ON house_members(house_id);
 
 CREATE TABLE house_locations (
   id BIGSERIAL PRIMARY KEY,
-  house_location_id UUID NOT NULL DEFAULT gen_random_uuid(),
+  house_location_id UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
   kiwi_location_id UUID UNIQUE,
   kiwi_parent_location_id UUID,
   house_id UUID NOT NULL REFERENCES houses(house_id) ON DELETE CASCADE,
@@ -135,9 +135,6 @@ CREATE TABLE house_locations (
   CONSTRAINT chk_house_locations_path_not_blank CHECK (path IS NULL OR btrim(path) <> '')
 );
 
-CREATE UNIQUE INDEX idx_house_locations_house_location_id
-ON house_locations(house_location_id);
-
 CREATE INDEX idx_house_locations_house_parent
 ON house_locations(house_id, parent_house_location_id);
 
@@ -155,11 +152,11 @@ ON house_locations(kiwi_parent_location_id);
 CREATE UNIQUE INDEX uq_house_locations_sibling
 ON house_locations (
   house_id,
-  COALESCE(parent_house_location_id, '00000000-0000-0000-0000-000000000000'::UUID),
+  parent_house_location_id,
   lower(name),
-  COALESCE(position_vertical::TEXT, ''),
-  COALESCE(position_horizontal::TEXT, '')
-);
+  position_vertical,
+  position_horizontal
+) NULLS NOT DISTINCT;
 
 CREATE TABLE objects (
   id BIGSERIAL PRIMARY KEY,

@@ -37,6 +37,8 @@ npm run web
 
 ```bash
 npm run health
+npm run start -- login --username demo --password secret
+npm run start -- token --client-id app1 --client-secret supersecret
 npm run start -- get-item --id UUID
 npm run start -- search-items --user-id UUID --q guantes
 npm run start -- list-houses --user-id UUID
@@ -52,3 +54,5 @@ Variables útiles:
 export HOUSEDB_BASE_URL="http://localhost:8080"
 export HOUSEDB_TOKEN="<bearer-opcional>"
 ```
+
+Para endpoints protegidos, primero obtén un JWT con `login` o `token`, y luego exporta `HOUSEDB_TOKEN`.

@@ -9,10 +9,13 @@ servers:
   - url: http://localhost:8080
     description: Desarrollo local
 
-security: []
+security:
+  - bearerAuth: []
 
 tags:
   - name: Public
+  - name: Auth
+  - name: Users
   - name: Items
   - name: Houses
 
@@ -21,6 +24,7 @@ paths:
     get:
       tags: [Public]
       summary: Estado de salud del servicio
+      security: []
       responses:
         '200':
           description: Servicio disponible
@@ -30,6 +34,88 @@ paths:
                 $ref: '#/components/schemas/HealthResponse'
         '405':
           description: Método no permitido
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login de usuario (JWT Bearer)
+      description: |
+        Acepta credenciales por JSON (`username`, `password`) o por `Authorization: Basic`.
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Token emitido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokenResponse'
+        '400':
+          description: Payload inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Credenciales inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedResponse'
+        '403':
+          description: Usuario deshabilitado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/token:
+    post:
+      tags: [Auth]
+      summary: Token M2M con client credentials
+      description: |
+        Acepta `client_id` + `client_secret` por JSON, form-urlencoded o por `Authorization: Basic`.
+        El `grant_type` debe ser `client_credentials`.
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientCredentialsRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ClientCredentialsRequest'
+      responses:
+        '200':
+          description: Token emitido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokenResponse'
+        '400':
+          description: Grant inválido o body incorrecto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Client inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedResponse'
+        '403':
+          description: Client deshabilitado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /items/search:
     get:
@@ -427,7 +513,46 @@ paths:
               schema:
                 $ref: '#/components/schemas/CreateHouseLocationResponse'
 
+  /users:
+    post:
+      tags: [Users]
+      summary: Crear usuario (requiere token app o rol ADMIN)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '200':
+          description: Usuario creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserCreateResponse'
+        '400':
+          description: Payload inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Token sin privilegios para crear usuario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    basicAuth:
+      type: http
+      scheme: basic
+
   parameters:
     InventoryItemIdPath:
       name: inventoryItemId
@@ -445,6 +570,32 @@ components:
         format: uuid
 
   schemas:
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string }
+        password: { type: string, format: password }
+
+    ClientCredentialsRequest:
+      type: object
+      required: [client_id, client_secret, grant_type]
+      properties:
+        client_id: { type: string }
+        client_secret: { type: string, format: password }
+        grant_type:
+          type: string
+          enum: [client_credentials]
+
+    AuthTokenResponse:
+      type: object
+      required: [token_type, access_token, expires_in]
+      properties:
+        token_type: { type: string, example: Bearer }
+        access_token: { type: string }
+        expires_in: { type: integer }
+        grant_type: { type: string, nullable: true, example: client_credentials }
+
     HealthResponse:
       type: object
       required: [status, timestamp]
@@ -530,6 +681,21 @@ components:
         longitude: { type: number, format: double }
         enabled: { type: boolean }
 
+    CreateUserRequest:
+      type: object
+      required: [username, password]
+      properties:
+        userId: { type: string, format: uuid }
+        username: { type: string }
+        password: { type: string, format: password }
+
+    UserCreateResponse:
+      type: object
+      required: [userId, username]
+      properties:
+        userId: { type: string, format: uuid }
+        username: { type: string }
+
     InventoryCreateResult:
       type: object
       required: [inventoryItemId]
@@ -564,6 +730,7 @@ components:
         objectKiwiId: { type: string, format: uuid, nullable: true }
         objectName: { type: string }
         objectDescription: { type: string, nullable: true }
+        objectCategory: { type: string, nullable: true }
         nickname: { type: string, nullable: true }
         houseId: { type: string, format: uuid }
         houseName: { type: string }
@@ -755,10 +922,17 @@ components:
       type: object
       properties:
         error: { type: string }
+        code: { type: string }
         message: { type: string }
         timestamp:
           type: string
           format: date-time
+
+    UnauthorizedResponse:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          required: [error]
 
     NotFoundResponse:
       allOf:
