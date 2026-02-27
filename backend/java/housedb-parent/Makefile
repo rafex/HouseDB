@@ -3,8 +3,10 @@ SHELL := /bin/bash
 .SHELLFLAGS := -euo pipefail -c
 
 MVN ?= ./mvnw
+JAR_JETTY ?= housedb-transport-jetty/target/housedb-transport-jetty-0.1.0-SNAPSHOT-jar-with-dependencies.jar
+GLOWROOT_AGENT_JAR ?= ../observability/glowroot/glowroot.jar
 
-.PHONY: help build build-without-tests test clean verify
+.PHONY: help build build-without-tests test clean verify glowroot-jetty glowroot-jetty-build
 
 help:
 	@echo "Targets:"
@@ -13,6 +15,8 @@ help:
 	@echo "  make test                -> mvn test"
 	@echo "  make clean               -> mvn clean"
 	@echo "  make verify              -> mvn verify"
+	@echo "  make glowroot-jetty      -> run fat jar with Glowroot agent"
+	@echo "  make glowroot-jetty-build-> build and run fat jar with Glowroot agent"
 
 build:
 	$(MVN) -q clean package
@@ -28,3 +32,15 @@ clean:
 
 verify:
 	$(MVN) -q verify
+
+glowroot-jetty:
+	@echo "Running HouseDB with Glowroot agent:"
+	java \
+	  -javaagent:$(GLOWROOT_AGENT_JAR) \
+	  -jar $(JAR_JETTY)
+
+glowroot-jetty-build: build
+	@echo "Building and running HouseDB with Glowroot agent:"
+	java \
+	  -javaagent:$(GLOWROOT_AGENT_JAR) \
+	  -jar $(JAR_JETTY)

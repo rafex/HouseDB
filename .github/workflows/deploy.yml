@@ -1,0 +1,83 @@
+name: Deploy HouseDB Backend
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Tag de imagen a desplegar (opcional, formato vN.YYYYmmDD)'
+        required: false
+        default: ''
+        type: string
+  push:
+    tags:
+      - 'v*.*'
+    paths:
+      - 'helm/housedb-backend/**'
+      - '.github/workflows/deploy.yml'
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    env:
+      K3S_NAMESPACE: mvps
+      RELEASE_NAME: housedb-backend
+      CHART_PATH: ./helm/housedb-backend
+      IMAGE_REPOSITORY: ghcr.io/rafex/housedb-backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Resolve deploy image tag
+        id: deploy_tag
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.version_tag }}" ]; then
+            IMAGE_TAG="${{ github.event.inputs.version_tag }}"
+          elif [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            IMAGE_TAG="${GITHUB_REF_NAME}"
+          else
+            IMAGE_TAG="latest"
+          fi
+
+          if [ "$IMAGE_TAG" != "latest" ] && ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}$'; then
+            echo "Invalid deploy tag format: $IMAGE_TAG"
+            echo "Expected format: vN.YYYYmmDD (examples: v1.20260222, v2.20260222)"
+            exit 1
+          fi
+
+          echo "value=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+          echo "Deploy image: ${IMAGE_REPOSITORY}:$IMAGE_TAG"
+
+      - name: Ensure namespace exists
+        run: |
+          kubectl get namespace "$K3S_NAMESPACE" >/dev/null 2>&1 || kubectl create namespace "$K3S_NAMESPACE"
+
+      - name: Lint chart
+        run: |
+          helm lint "$CHART_PATH"
+
+      - name: Deploy Helm release
+        run: |
+          helm upgrade --install "$RELEASE_NAME" "$CHART_PATH" \
+            --namespace "$K3S_NAMESPACE" \
+            --set image.repository="$IMAGE_REPOSITORY" \
+            --set image.tag="${{ steps.deploy_tag.outputs.value }}" \
+            --wait --timeout 5m
+
+      - name: Show rollout status
+        run: |
+          kubectl -n "$K3S_NAMESPACE" rollout status deployment/"$RELEASE_NAME" --timeout=180s
+
+      - name: Print deployed image reference
+        run: |
+          IMAGE_URL="${IMAGE_REPOSITORY}:${{ steps.deploy_tag.outputs.value }}"
+          echo "Deployed image URL: $IMAGE_URL"

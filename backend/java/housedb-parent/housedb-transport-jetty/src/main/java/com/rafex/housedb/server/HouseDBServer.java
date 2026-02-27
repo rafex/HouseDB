@@ -1,6 +1,7 @@
 package com.rafex.housedb.server;
 
 import com.rafex.housedb.bootstrap.HouseDbContainer;
+import com.rafex.housedb.handlers.GlowrootNamingHandler;
 import com.rafex.housedb.handlers.HealthHandler;
 import com.rafex.housedb.handlers.JwtAuthHandler;
 import com.rafex.housedb.handlers.LoginHandler;
@@ -77,7 +78,7 @@ public final class HouseDBServer {
                 .protectedPrefix("/users")
                 .protectedPrefix("/users/*");
 
-        server.setHandler(auth);
+        server.setHandler(new GlowrootNamingHandler(auth));
 
         LOG.info("Starting HouseDB backend on port " + port);
         server.start();

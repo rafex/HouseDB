@@ -1,12 +1,145 @@
-replicaCount: 1
+replicaCount: 2
 
 image:
-  repository: housedb-backend
-  tag: latest
-  pullPolicy: IfNotPresent
+  repository: ghcr.io/rafex/housedb-backend
+  pullPolicy: Always
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
 
 service:
   type: ClusterIP
   port: 8080
+  glowrootPort: 4000
+  exposeGlowroot: false
 
-resources: {}
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+startupProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  failureThreshold: 30
+  periodSeconds: 10
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 75
+
+env:
+  PORT: "8080"
+  LOG_LEVEL: INFO
+  JWT_ISS: com.rafex.housedb
+  JWT_AUD: housedb-backend
+  JWT_TTL_SECONDS: "3600"
+  JWT_APP_TTL_SECONDS: "1800"
+  AUTH_SALT_BYTES: "16"
+  AUTH_HASH_BYTES: "32"
+  AUTH_PBKDF2_ITERATIONS: "120000"
+  ENVIRONMENT: production
+  KIWI_API_BASE_URL: https://kiwi.v1.rafex.cloud
+  KIWI_BOOTSTRAP_APP_CLIENT: "false"
+  KIWI_APP_CLIENT_NAME: HouseDB
+  KIWI_APP_CLIENT_ROLES: ADMIN
+
+secretEnv:
+  DB_URL: ""
+  DB_USER: ""
+  DB_PASSWORD: ""
+  JWT_SECRET: ""
+  KIWI_APP_CLIENT_ID: ""
+  KIWI_APP_CLIENT_SECRET: ""
+  KIWI_ADMIN_USERNAME: ""
+  KIWI_ADMIN_PASSWORD: ""
+
+existingSecret: housedb-backend-secrets
+
+extraEnv: []
+
+glowroot:
+  persistence:
+    enabled: true
+
+volumes:
+  - name: tmp
+    emptyDir: {}
+  - name: glowroot-logs
+    emptyDir: {}
+  - name: glowroot-tmp
+    emptyDir: {}
+  - name: glowroot-data
+    emptyDir: {}
+
+volumeMounts:
+  - name: glowroot-logs
+    mountPath: /app/glowroot/logs
+  - name: glowroot-tmp
+    mountPath: /app/glowroot/tmp
+  - name: glowroot-data
+    mountPath: /app/glowroot/data
+  - name: tmp
+    mountPath: /tmp
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+ingress:
+  enabled: true
+  className: haproxy
+  annotations:
+    ingress.kubernetes.io/rewrite-target: /
+    ingress.kubernetes.io/ssl-redirect: "false"
+    ingress.kubernetes.io/backend-protocol: "http"
+  hosts:
+    - host: housedb.v1.rafex.cloud
+      paths:
+        - path: /
+          pathType: Prefix
+  glowroot:
+    enabled: true
+    host: housedb-glowroot.v1.rafex.cloud
+    path: /
+    pathType: Prefix
+  tls: []

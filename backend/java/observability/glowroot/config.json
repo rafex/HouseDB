@@ -222,7 +222,7 @@
   ],
   "instrumentation": [
     {
-      "className": "dev.rafex.kiwi.handlers.GlowrootNamingHandler",
+      "className": "com.rafex.housedb.handlers.GlowrootNamingHandler",
       "methodName": "handle",
       "methodParameterTypes": [
         "org.eclipse.jetty.server.Request",
@@ -232,23 +232,23 @@
       "order": 0,
       "captureKind": "transaction",
       "transactionType": "Web",
-      "transactionNameTemplate": "kiwi web",
+      "transactionNameTemplate": "housedb web",
       "alreadyInTransactionBehavior": "capture-trace-entry",
       "traceEntryMessageTemplate": "{{0.httpURI.path}}",
       "timerName": "jetty handler"
     },
     {
-      "className": "dev.rafex.kiwi.services.ObjectServices",
-      "methodName": "search",
+      "className": "com.rafex.housedb.services.impl.ItemFinderServiceImpl",
+      "methodName": "searchInventoryItems",
       "methodParameterTypes": [
         ".."
       ],
       "order": 0,
       "captureKind": "trace-entry",
       "transactionType": "Services",
-      "transactionNameTemplate": "ObjectServices:Search",
+      "transactionNameTemplate": "ItemFinderService:searchInventoryItems",
       "traceEntryMessageTemplate": "{{this.class.name}}.{{methodName}}",
-      "timerName": "Search"
+      "timerName": "ItemFinderSearch"
     }
   ]
 }

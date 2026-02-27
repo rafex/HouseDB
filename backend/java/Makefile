@@ -12,7 +12,7 @@ DB_USER ?=
 DB_PASSWORD ?=
 DB_URL ?=
 
-.PHONY: help build test clean verify build-without-tests image run-image run-image-from-current
+.PHONY: help build test clean verify build-without-tests image run-image run-image-from-current glowroot-jetty glowroot-jetty-build
 
 help:
 	@echo "Targets:"
@@ -22,6 +22,8 @@ help:
 	@echo "  make verify              -> mvn verify"
 	@echo "  make image               -> build container image ($(IMAGE))"
 	@echo "  make run-image           -> build + run image"
+	@echo "  make glowroot-jetty      -> run java app with Glowroot agent"
+	@echo "  make glowroot-jetty-build-> build and run java app with Glowroot agent"
 
 build:
 	$(MAKE) -C $(PARENT_DIR) build
@@ -43,6 +45,12 @@ image: build-without-tests
 	$(CONTAINER_TOOL) build -t "$(IMAGE)" -f Dockerfile .
 
 run-image: image run-image-from-current
+
+glowroot-jetty:
+	$(MAKE) -C $(PARENT_DIR) glowroot-jetty
+
+glowroot-jetty-build:
+	$(MAKE) -C $(PARENT_DIR) glowroot-jetty-build
 
 run-image-from-current:
 	@echo "Running container $(CONTAINER_NAME) on port $(PORT)"

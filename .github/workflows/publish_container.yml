@@ -1,0 +1,122 @@
+name: Build and Publish Container
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*.*'
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Tag de version para la imagen (formato vN.YYYYmmDD, ej: v2.20260222)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  check_paths:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for changes in backend/java/housedb* or backend/java/Dockerfile
+        id: check
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] || [ "${GITHUB_REF_TYPE}" = "tag" ] || [ "${GITHUB_REF_NAME}" = "main" ]; then
+            echo "Detected manual run, tag push or main push; allowing build."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          PARENT=$(git rev-parse "${GITHUB_SHA}^" 2>/dev/null || true)
+          if [ -z "$PARENT" ]; then
+            git diff --name-only "${GITHUB_SHA}" | grep -E '^backend/java/(housedb|Dockerfile$)' > /dev/null && echo "changed=true" >> "$GITHUB_OUTPUT" || echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            git diff --name-only "$PARENT" "${GITHUB_SHA}" | grep -E '^backend/java/(housedb|Dockerfile$)' > /dev/null && echo "changed=true" >> "$GITHUB_OUTPUT" || echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-and-push:
+    name: Build and push to GHCR
+    needs: check_paths
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.check_paths.outputs.changed == 'true' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve and validate image tag
+        id: image_tag
+        run: |
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            IMAGE_TAG="latest"
+          elif [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            IMAGE_TAG="${{ github.event.inputs.version_tag }}"
+          else
+            IMAGE_TAG="${GITHUB_REF_NAME}"
+          fi
+
+          if [ "$IMAGE_TAG" != "latest" ] && ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}$'; then
+            echo "Invalid tag format: $IMAGE_TAG"
+            echo "Expected format: vN.YYYYmmDD (examples: v1.20260222, v2.20260222)"
+            exit 1
+          fi
+
+          echo "value=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          architecture: x64
+          cache: maven
+
+      - name: Run Maven build
+        working-directory: backend/java/housedb-parent
+        run: ./mvnw -q -DskipTests package
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push (release/latest + sha tags)
+        uses: docker/build-push-action@v6
+        with:
+          context: backend/java
+          file: backend/java/Dockerfile
+          push: true
+          provenance: false
+          sbom: false
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/housedb-backend:${{ steps.image_tag.outputs.value }}
+            ghcr.io/${{ github.repository_owner }}/housedb-backend:${{ github.sha }}
+          cache-from: |
+            type=registry,ref=ghcr.io/${{ github.repository_owner }}/housedb-backend:${{ github.sha }}
+
+      - name: Publish visibility note
+        run: |
+          IMAGE_BASE="ghcr.io/${{ github.repository_owner }}/housedb-backend"
+          echo "Image pushed to: $IMAGE_BASE"
+          echo "Final image URL (primary): $IMAGE_BASE:${{ steps.image_tag.outputs.value }}"
+          echo "Final image URL (sha): $IMAGE_BASE:${{ github.sha }}"
+          echo "Make the package public in GitHub Packages UI if you want anonymous pulls."

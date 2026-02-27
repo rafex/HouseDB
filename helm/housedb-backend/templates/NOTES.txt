@@ -1,0 +1,5 @@
+1. Nombre del release: {{ .Release.Name }}
+2. Servicio:
+   kubectl get svc -n {{ .Release.Namespace }} {{ include "housedb-backend.fullname" . }}
+3. Logs:
+   kubectl logs -n {{ .Release.Namespace }} deploy/{{ include "housedb-backend.fullname" . }} -f
