@@ -4,7 +4,7 @@ import java.util.UUID;
 
 public record CreateHouseLocationRequest(
         String name,
-        UUID parentKiwiLocationId,
+        UUID parentHouseLocationId,
         String locationKind,
         Boolean isLeaf,
         String path,

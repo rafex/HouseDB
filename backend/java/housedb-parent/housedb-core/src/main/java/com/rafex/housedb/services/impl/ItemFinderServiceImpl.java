@@ -98,6 +98,14 @@ public final class ItemFinderServiceImpl implements ItemFinderService {
     }
 
     @Override
+    public UUID findRootKiwiLocationIdByHouseId(final UUID houseId) throws SQLException {
+        if (houseId == null) {
+            throw new IllegalArgumentException("houseId is required");
+        }
+        return locationSyncRepository.findRootKiwiLocationIdByHouseId(houseId);
+    }
+
+    @Override
     public UUID upsertObjectFromKiwi(final UUID kiwiObjectId, final String name, final String description,
             final String category, final String bucketImage, final Boolean enabled) throws SQLException {
         if (kiwiObjectId == null) {

@@ -131,7 +131,7 @@ BEGIN
     TRUE,
     TRUE
   )
-  ON CONFLICT (inventory_item_id)
+  ON CONFLICT ON CONSTRAINT uq_item_current_location_inventory_item
   DO UPDATE SET
     house_location_leaf_id = EXCLUDED.house_location_leaf_id,
     assigned_at = EXCLUDED.assigned_at,

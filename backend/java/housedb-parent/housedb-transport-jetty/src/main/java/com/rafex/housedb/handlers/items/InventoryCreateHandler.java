@@ -63,7 +63,6 @@ final class InventoryCreateHandler {
             payload.put("inventoryItemId", result.inventoryItemId());
             payload.put("itemMovementId", result.itemMovementId());
             payload.put("objectId", objectId);
-            payload.put("kiwiObjectId", kiwiObjectId);
             HttpUtil.ok(response, callback, payload);
         });
     }

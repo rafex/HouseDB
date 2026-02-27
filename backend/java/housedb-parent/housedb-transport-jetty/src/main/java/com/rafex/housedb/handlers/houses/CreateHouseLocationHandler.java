@@ -29,13 +29,24 @@ final class CreateHouseLocationHandler {
     boolean handle(final Request request, final Response response, final Callback callback, final UUID houseId) {
         return HouseEndpointSupport.execute(LOG, response, callback, () -> {
             final var body = JsonUtil.MAPPER.readValue(Request.asInputStream(request), CreateHouseLocationRequest.class);
-            final UUID kiwiLocationId = kiwiApiClient.createLocation(body.name(), body.parentKiwiLocationId());
+            final UUID kiwiParentLocationId;
+            final UUID parentHouseLocationId = body.parentHouseLocationId();
+            if (parentHouseLocationId != null) {
+                kiwiParentLocationId = itemService.findKiwiLocationIdByHouseLocationId(parentHouseLocationId);
+                if (kiwiParentLocationId == null) {
+                    throw new IllegalArgumentException("parentHouseLocationId is not synchronized with kiwi location");
+                }
+            } else {
+                kiwiParentLocationId = itemService.findRootKiwiLocationIdByHouseId(houseId);
+            }
+
+            final UUID kiwiLocationId = kiwiApiClient.createLocation(body.name(), kiwiParentLocationId);
 
             final UUID houseLocationId = itemService.upsertHouseLocationFromKiwi(
                     houseId,
                     kiwiLocationId,
-                    body.parentKiwiLocationId(),
-                    null,
+                    kiwiParentLocationId,
+                    parentHouseLocationId,
                     body.locationKind(),
                     body.name(),
                     body.isLeaf(),
@@ -47,8 +58,7 @@ final class CreateHouseLocationHandler {
                     body.enabled());
 
             HttpUtil.ok(response, callback, Map.of(
-                    "houseLocationId", houseLocationId,
-                    "kiwiLocationId", kiwiLocationId));
+                    "houseLocationId", houseLocationId));
         });
     }
 }

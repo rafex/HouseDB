@@ -47,7 +47,7 @@ npm run start -- list-house-ids
 npm run start -- create-house --name "Casa CDMX"
 npm run start -- list-house-members --house-id UUID
 npm run start -- upsert-house-member --house-id UUID --user-id UUID --role guest --method PUT
-npm run start -- create-house-location --house-id UUID --name "Closet principal"
+npm run start -- create-house-location --house-id UUID --name "Closet principal" --parent-house-location-id UUID
 ```
 
 Variables útiles:

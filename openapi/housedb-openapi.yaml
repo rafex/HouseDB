@@ -686,7 +686,7 @@ components:
       required: [name]
       properties:
         name: { type: string }
-        parentKiwiLocationId: { type: string, format: uuid }
+        parentHouseLocationId: { type: string, format: uuid }
         locationKind: { type: string, example: slot }
         isLeaf: { type: boolean }
         path: { type: string }
@@ -713,12 +713,11 @@ components:
 
     InventoryCreateResult:
       type: object
-      required: [inventoryItemId, objectId, kiwiObjectId]
+      required: [inventoryItemId, objectId]
       properties:
         inventoryItemId: { type: string, format: uuid }
         itemMovementId: { type: string, format: uuid, nullable: true }
         objectId: { type: string, format: uuid }
-        kiwiObjectId: { type: string, format: uuid }
 
     ItemMovement:
       type: object
@@ -850,10 +849,9 @@ components:
 
     CreateHouseLocationResponse:
       type: object
-      required: [houseLocationId, kiwiLocationId]
+      required: [houseLocationId]
       properties:
         houseLocationId: { type: string, format: uuid }
-        kiwiLocationId: { type: string, format: uuid }
 
     SearchInventoryResponse:
       type: object

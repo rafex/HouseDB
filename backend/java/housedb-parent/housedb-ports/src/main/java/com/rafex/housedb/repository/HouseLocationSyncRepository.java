@@ -11,6 +11,8 @@ public interface HouseLocationSyncRepository {
 
     UUID findKiwiLocationIdByHouseLocationId(UUID houseLocationId) throws SQLException;
 
+    UUID findRootKiwiLocationIdByHouseId(UUID houseId) throws SQLException;
+
     UUID upsertObjectFromKiwi(UUID kiwiObjectId, String name, String description, String category, String bucketImage,
             Boolean enabled) throws SQLException;
 }

@@ -99,7 +99,6 @@ item_json=$("$SOURCE_DIR/create_inventory_item.sh" -u "$BASE_URL" -t "$USER_TOKE
 INVENTORY_ITEM_ID=$(printf '%s' "$item_json" | jq -r '.inventoryItemId // empty')
 ITEM_MOVEMENT_ID=$(printf '%s' "$item_json" | jq -r '.itemMovementId // empty')
 OBJECT_ID=$(printf '%s' "$item_json" | jq -r '.objectId // empty')
-KIWI_OBJECT_ID=$(printf '%s' "$item_json" | jq -r '.kiwiObjectId // empty')
 printf '%s\n' "$item_json" | jq .
 
 printf '\n== Resumen ==\n'
@@ -108,7 +107,6 @@ printf 'house_id: %s\n' "$HOUSE_ID"
 printf 'house_member_id: %s\n' "$HOUSE_MEMBER_ID"
 printf 'house_location_id: %s\n' "$HOUSE_LOCATION_ID"
 printf 'object_id: %s\n' "$OBJECT_ID"
-printf 'kiwi_object_id: %s\n' "$KIWI_OBJECT_ID"
 printf 'inventory_item_id: %s\n' "$INVENTORY_ITEM_ID"
 printf 'item_movement_id: %s\n' "$ITEM_MOVEMENT_ID"
 

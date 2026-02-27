@@ -61,7 +61,19 @@ public final class ItemRepositoryImpl
 
     private static final String SQL_UPSERT_KIWI_LOCATION = """
             SELECT api_upsert_house_location_from_kiwi(
-              ?, ?, ?, ?, ?::location_kind, ?, ?, ?, ?, ?, ?, ?, ?
+              ?::uuid,
+              ?::uuid,
+              ?::uuid,
+              ?::uuid,
+              ?::location_kind,
+              ?::text,
+              ?::boolean,
+              ?::text,
+              ?::text,
+              ?::text,
+              ?::numeric,
+              ?::numeric,
+              ?::boolean
             ) AS house_location_id
             """;
     private static final String SQL_FIND_KIWI_LOCATION_ID = """
@@ -69,6 +81,15 @@ public final class ItemRepositoryImpl
             FROM house_locations
             WHERE house_location_id = ?
               AND enabled = TRUE
+            LIMIT 1
+            """;
+    private static final String SQL_FIND_ROOT_KIWI_LOCATION_ID_BY_HOUSE = """
+            SELECT kiwi_location_id
+            FROM house_locations
+            WHERE house_id = ?
+              AND parent_house_location_id IS NULL
+              AND enabled = TRUE
+            ORDER BY created_at ASC
             LIMIT 1
             """;
     private static final String SQL_UPSERT_OBJECT_FROM_KIWI = """
@@ -296,6 +317,20 @@ public final class ItemRepositoryImpl
                     return null;
                 }
                 return rs.getObject("kiwi_location_id", UUID.class);
+            }
+        }
+    }
+
+    @Override
+    public UUID findRootKiwiLocationIdByHouseId(final UUID houseId) throws SQLException {
+        try (Connection connection = dataSource.getConnection();
+                PreparedStatement ps = connection.prepareStatement(SQL_FIND_ROOT_KIWI_LOCATION_ID_BY_HOUSE)) {
+            ps.setObject(1, houseId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getObject("kiwi_location_id", UUID.class);
+                }
+                return null;
             }
         }
     }

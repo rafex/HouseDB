@@ -31,7 +31,7 @@ Comandos:
   create-house --name NOMBRE [--city CITY] [--state STATE] [--country COUNTRY]
   list-house-members --house-id UUID [--include-disabled true|false] [--limit N]
   upsert-house-member --house-id UUID --user-id UUID [--role owner|family|guest] [--enabled true|false] [--method POST|PUT]
-  create-house-location --house-id UUID --name NOMBRE [--parent-kiwi-location-id UUID]
+  create-house-location --house-id UUID --name NOMBRE [--parent-house-location-id UUID]
   demo
 
 Variables de entorno:
@@ -183,7 +183,7 @@ async function main() {
       case "create-house-location":
         res = await client.createHouseLocation(argValue("--house-id"), {
           name: argValue("--name"),
-          parentKiwiLocationId: argValue("--parent-kiwi-location-id") || undefined
+          parentHouseLocationId: argValue("--parent-house-location-id") || undefined
         });
         break;
 
