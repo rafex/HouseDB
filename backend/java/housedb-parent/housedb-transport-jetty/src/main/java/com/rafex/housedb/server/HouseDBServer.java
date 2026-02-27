@@ -51,6 +51,7 @@ public final class HouseDBServer {
         routes.addMapping(PathSpec.from("/auth/login"), new LoginHandler(jwt, container.authService()));
         routes.addMapping(PathSpec.from("/auth/token"), new TokenHandler(jwt, container.appClientAuthService()));
         final var kiwiApiClient = new KiwiApiClient();
+        kiwiApiClient.bootstrapAppClientFromEnv();
         final var itemRoutes = new ItemsRouterHandler(container.itemFinderService(), kiwiApiClient);
         final var houseRoutes = new HousesRouterHandler(container.houseService(), container.itemFinderService(),
                 kiwiApiClient);
