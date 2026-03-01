@@ -3,6 +3,7 @@ package com.rafex.housedb.server;
 import com.rafex.housedb.bootstrap.HouseDbContainer;
 import com.rafex.housedb.handlers.GlowrootNamingHandler;
 import com.rafex.housedb.handlers.HealthHandler;
+import com.rafex.housedb.handlers.HelloHandler;
 import com.rafex.housedb.handlers.JwtAuthHandler;
 import com.rafex.housedb.handlers.LoginHandler;
 import com.rafex.housedb.handlers.houses.HousesRouterHandler;
@@ -49,6 +50,9 @@ public final class HouseDBServer {
                 System.getenv().getOrDefault("JWT_AUD", "housedb-backend"),
                 System.getenv().getOrDefault("JWT_SECRET", "CHANGE_ME_NOW_32+chars_secret"));
         routes.addMapping(PathSpec.from("/health"), new HealthHandler());
+        final var helloHandler = new HelloHandler();
+        routes.addMapping(PathSpec.from("/hello"), helloHandler);
+        routes.addMapping(PathSpec.from("/hello/name"), helloHandler);
         routes.addMapping(PathSpec.from("/auth/login"), new LoginHandler(jwt, container.authService()));
         routes.addMapping(PathSpec.from("/auth/token"), new TokenHandler(jwt, container.appClientAuthService()));
         final var kiwiApiClient = new KiwiApiClient();
@@ -68,6 +72,9 @@ public final class HouseDBServer {
 
         final var auth = new JwtAuthHandler(routes, jwt)
                 .publicPath("GET", "/health")
+                .publicPath("GET", "/hello")
+                .publicPath("GET", "/hello/name")
+                .publicPath("POST", "/hello/name")
                 .publicPath("POST", "/auth/login")
                 .publicPath("POST", "/auth/token")
                 .protectedPrefix("/items")
