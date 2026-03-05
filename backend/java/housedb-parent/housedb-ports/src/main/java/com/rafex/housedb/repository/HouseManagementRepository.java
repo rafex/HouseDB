@@ -16,7 +16,9 @@ public interface HouseManagementRepository {
 
     HouseMemberEntity upsertHouseMember(UUID houseId, UUID userId, String role, Boolean enabled) throws SQLException;
 
-    List<HouseSummaryEntity> listUserHouses(UUID userId, Boolean includeDisabled, int limit) throws SQLException;
+    List<HouseSummaryEntity> listUserHouses(UUID userId, Boolean includeDisabled, int limit, int offset)
+            throws SQLException;
 
-    List<HouseMemberEntity> listHouseMembers(UUID houseId, Boolean includeDisabled, int limit) throws SQLException;
+    List<HouseMemberEntity> listHouseMembers(UUID houseId, Boolean includeDisabled, int limit, int offset)
+            throws SQLException;
 }

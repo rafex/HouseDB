@@ -28,18 +28,20 @@ public final class BuildVersion {
             properties.load(input);
 
             final var tag = normalize(properties.getProperty("git.closest.tag.name"));
+            final var commit = normalize(properties.getProperty("git.commit.id.abbrev"));
+            if (tag != null && commit != null) {
+                return tag + "+" + commit;
+            }
             if (tag != null) {
                 return tag;
+            }
+            if (commit != null) {
+                return commit;
             }
 
             final var described = normalize(properties.getProperty("git.commit.id.describe-short"));
             if (described != null) {
                 return described;
-            }
-
-            final var commit = normalize(properties.getProperty("git.commit.id.abbrev"));
-            if (commit != null) {
-                return commit;
             }
 
             return fromEnv != null ? fromEnv : UNKNOWN_VERSION;

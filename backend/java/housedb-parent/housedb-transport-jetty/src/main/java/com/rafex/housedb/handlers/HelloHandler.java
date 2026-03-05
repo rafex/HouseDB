@@ -5,80 +5,84 @@ import com.rafex.housedb.json.JsonUtil;
 import com.rafex.housedb.tools.BuildVersion;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
-import org.eclipse.jetty.http.HttpMethod;
 import org.eclipse.jetty.io.Content;
-import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
-import org.eclipse.jetty.util.Callback;
 import org.eclipse.jetty.util.MultiMap;
 import org.eclipse.jetty.util.UrlEncoded;
 
-public final class HelloHandler extends Handler.Abstract.NonBlocking {
+import dev.rafex.ether.http.core.HttpExchange;
+import dev.rafex.ether.http.core.Route;
+import dev.rafex.ether.http.jetty12.NonBlockingResourceHandler;
+import dev.rafex.ether.json.JsonCodec;
+
+public final class HelloHandler extends NonBlockingResourceHandler {
+
+    public HelloHandler(final JsonCodec jsonCodec) {
+        super(jsonCodec);
+    }
 
     @Override
-    public boolean handle(final Request request, final Response response, final Callback callback) {
-        final var path = request.getHttpURI() != null ? request.getHttpURI().getPath() : null;
-        if (path == null) {
-            HttpUtil.badRequest(response, callback, "missing_path");
+    protected String basePath() {
+        return "/hello";
+    }
+
+    @Override
+    protected List<Route> routes() {
+        return List.of(
+                Route.of("/", Set.of("GET")),
+                Route.of("/name", Set.of("GET", "POST")));
+    }
+
+    @Override
+    public boolean get(final HttpExchange x) {
+        if ("/hello".equals(x.path())) {
+            HttpUtil.ok(x, responseBody(null));
             return true;
         }
-
-        if ("/hello".equals(path)) {
-            if (!HttpMethod.GET.is(request.getMethod())) {
-                response.setStatus(405);
-                callback.succeeded();
-                return true;
-            }
-            HttpUtil.ok(response, callback, responseBody(null));
+        if ("/hello/name".equals(x.path())) {
+            final var name = normalize(x.queryFirst("name"));
+            HttpUtil.ok(x, responseBody(name));
             return true;
         }
-
-        if ("/hello/name".equals(path)) {
-            if (!HttpMethod.GET.is(request.getMethod()) && !HttpMethod.POST.is(request.getMethod())) {
-                response.setStatus(405);
-                callback.succeeded();
-                return true;
-            }
-            final var name = HttpMethod.GET.is(request.getMethod()) ? nameFromQuery(request) : nameFromPost(request);
-            HttpUtil.ok(response, callback, responseBody(name));
-            return true;
-        }
-
         return false;
     }
 
-    private static String nameFromPost(final Request request) {
-        final var queryName = nameFromQuery(request);
+    @Override
+    public boolean post(final HttpExchange x) {
+        if (!"/hello/name".equals(x.path())) {
+            return false;
+        }
+        final var queryName = normalize(x.queryFirst("name"));
+        final var request = ExchangeAdapters.request(x);
         String body = null;
         try {
             body = Content.Source.asString(request, StandardCharsets.UTF_8);
         } catch (final Exception ignored) {
-            return queryName;
+            HttpUtil.ok(x, responseBody(queryName));
+            return true;
         }
 
         if (body == null || body.isBlank()) {
-            return queryName;
+            HttpUtil.ok(x, responseBody(queryName));
+            return true;
         }
 
         try {
             final var json = JsonUtil.MAPPER.readTree(body);
             final var node = json != null ? json.get("name") : null;
             final var bodyName = node != null && node.isTextual() ? normalize(node.asText()) : null;
-            return bodyName != null ? bodyName : queryName;
+            HttpUtil.ok(x, responseBody(bodyName != null ? bodyName : queryName));
+            return true;
         } catch (final Exception ignored) {
             final var form = parseQuery(body);
             final var formName = normalize(form.getValue("name"));
-            return formName != null ? formName : queryName;
+            HttpUtil.ok(x, responseBody(formName != null ? formName : queryName));
+            return true;
         }
-    }
-
-    private static String nameFromQuery(final Request request) {
-        final var rawQuery = request.getHttpURI() != null ? request.getHttpURI().getQuery() : null;
-        final var params = parseQuery(rawQuery);
-        return normalize(params.getValue("name"));
     }
 
     private static MultiMap<String> parseQuery(final String rawQuery) {

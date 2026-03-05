@@ -11,6 +11,8 @@ import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.util.Callback;
 
+import dev.rafex.ether.http.core.HttpExchange;
+
 public final class HttpUtil {
 
     private HttpUtil() {
@@ -29,8 +31,21 @@ public final class HttpUtil {
         json(response, callback, HttpStatus.OK_200, body);
     }
 
+    public static void json(final HttpExchange exchange, final int status, final Object body) {
+        exchange.json(status, body);
+    }
+
+    public static void ok(final HttpExchange exchange, final Object body) {
+        exchange.json(HttpStatus.OK_200, body);
+    }
+
     public static void notFound(final Response response, final Callback callback, final String path) {
         json(response, callback, HttpStatus.NOT_FOUND_404,
+                Map.of("error", "not_found", "path", path, "timestamp", Instant.now().toString()));
+    }
+
+    public static void notFound(final HttpExchange exchange, final String path) {
+        exchange.json(HttpStatus.NOT_FOUND_404,
                 Map.of("error", "not_found", "path", path, "timestamp", Instant.now().toString()));
     }
 
@@ -39,8 +54,18 @@ public final class HttpUtil {
                 Map.of("error", "bad_request", "message", message, "timestamp", Instant.now().toString()));
     }
 
+    public static void badRequest(final HttpExchange exchange, final String message) {
+        exchange.json(HttpStatus.BAD_REQUEST_400,
+                Map.of("error", "bad_request", "message", message, "timestamp", Instant.now().toString()));
+    }
+
     public static void unauthorized(final Response response, final Callback callback, final String code) {
         json(response, callback, HttpStatus.UNAUTHORIZED_401,
+                Map.of("error", "unauthorized", "code", code, "timestamp", Instant.now().toString()));
+    }
+
+    public static void unauthorized(final HttpExchange exchange, final String code) {
+        exchange.json(HttpStatus.UNAUTHORIZED_401,
                 Map.of("error", "unauthorized", "code", code, "timestamp", Instant.now().toString()));
     }
 
@@ -49,8 +74,19 @@ public final class HttpUtil {
                 Map.of("error", "forbidden", "code", code, "timestamp", Instant.now().toString()));
     }
 
+    public static void forbidden(final HttpExchange exchange, final String code) {
+        exchange.json(HttpStatus.FORBIDDEN_403,
+                Map.of("error", "forbidden", "code", code, "timestamp", Instant.now().toString()));
+    }
+
     public static void internalServerError(final Response response, final Callback callback, final String message) {
         json(response, callback, HttpStatus.INTERNAL_SERVER_ERROR_500,
+                Map.of("error", "internal_server_error", "message", message,
+                        "timestamp", Instant.now().toString()));
+    }
+
+    public static void internalServerError(final HttpExchange exchange, final String message) {
+        exchange.json(HttpStatus.INTERNAL_SERVER_ERROR_500,
                 Map.of("error", "internal_server_error", "message", message,
                         "timestamp", Instant.now().toString()));
     }

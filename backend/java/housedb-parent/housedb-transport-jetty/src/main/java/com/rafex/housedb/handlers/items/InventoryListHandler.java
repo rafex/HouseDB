@@ -10,13 +10,13 @@ import java.util.logging.Logger;
 
 import dev.rafex.ether.http.core.HttpExchange;
 
-final class InventoryByLocationHandler {
+final class InventoryListHandler {
 
-    private static final Logger LOG = Logger.getLogger(InventoryByLocationHandler.class.getName());
+    private static final Logger LOG = Logger.getLogger(InventoryListHandler.class.getName());
 
     private final ItemFinderService service;
 
-    InventoryByLocationHandler(final ItemFinderService service) {
+    InventoryListHandler(final ItemFinderService service) {
         this.service = service;
     }
 
@@ -24,14 +24,9 @@ final class InventoryByLocationHandler {
         return EndpointSupport.execute(LOG, x, () -> {
             final var query = ItemRequestParsers.parseQuery(ExchangeAdapters.rawQuery(x));
             final var userId = AuthzSupport.requireTokenUser(x);
-            final var houseId = ItemRequestParsers.parseOptionalUuid(query, "houseId");
-            final var houseLocationId = ItemRequestParsers.parseOptionalUuid(query, "houseLocationId");
-            final Boolean includeDescendants = ItemRequestParsers.parseOptionalBoolean(query, "includeDescendants");
             final Integer limit = ItemRequestParsers.parseOptionalInt(query, "limit");
             final Integer offset = ItemRequestParsers.parseOptionalInt(query, "offset");
-
-            final var items = service.listInventoryByLocation(userId, houseId, houseLocationId, includeDescendants,
-                    limit, offset);
+            final var items = service.listOwnedInventoryItems(userId, limit, offset);
             HttpUtil.ok(x, Map.of("items", items, "count", items.size()));
         });
     }

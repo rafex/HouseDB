@@ -44,11 +44,20 @@ public final class ItemFinderServiceImpl implements ItemFinderService {
     }
 
     @Override
+    public List<HouseItem> listOwnedInventoryItems(final UUID userId, final Integer limit, final Integer offset)
+            throws SQLException {
+        requireUser(userId);
+        return mapper.toHouseItems(searchRepository.searchInventoryItems(userId, null, null, null,
+                normalizeLimit(limit), normalizeOffset(offset)));
+    }
+
+    @Override
     public List<HouseItem> searchInventoryItems(final UUID userId, final String text, final UUID houseId,
-            final UUID houseLocationLeafId, final Integer limit) throws SQLException {
+            final UUID houseLocationLeafId, final Integer limit, final Integer offset) throws SQLException {
         requireUser(userId);
         return mapper.toHouseItems(
-                searchRepository.searchInventoryItems(userId, text, houseId, houseLocationLeafId, normalizeLimit(limit)));
+                searchRepository.searchInventoryItems(userId, text, houseId, houseLocationLeafId, normalizeLimit(limit),
+                        normalizeOffset(offset)));
     }
 
     @Override
@@ -120,20 +129,24 @@ public final class ItemFinderServiceImpl implements ItemFinderService {
 
     @Override
     public List<LocationInventoryItem> listInventoryByLocation(final UUID userId, final UUID houseId,
-            final UUID houseLocationId, final Boolean includeDescendants, final Integer limit) throws SQLException {
+            final UUID houseLocationId, final Boolean includeDescendants, final Integer limit, final Integer offset)
+            throws SQLException {
         requireUser(userId);
         return mapper.toLocationInventoryItems(searchRepository.listInventoryByLocation(userId, houseId, houseLocationId,
-                includeDescendants == null ? Boolean.TRUE : includeDescendants, normalizeLimit(limit, 200)));
+                includeDescendants == null ? Boolean.TRUE : includeDescendants, normalizeLimit(limit, 200),
+                normalizeOffset(offset)));
     }
 
     @Override
-    public List<InventoryTimelineEvent> inventoryItemTimeline(final UUID inventoryItemId, final Integer limit)
+    public List<InventoryTimelineEvent> inventoryItemTimeline(final UUID inventoryItemId, final Integer limit,
+            final Integer offset)
             throws SQLException {
         if (inventoryItemId == null) {
             throw new IllegalArgumentException("inventoryItemId is required");
         }
         return mapper.toInventoryTimelineEvents(
-                searchRepository.inventoryItemTimeline(inventoryItemId, normalizeLimit(limit, 100)));
+                searchRepository.inventoryItemTimeline(inventoryItemId, normalizeLimit(limit, 100),
+                        normalizeOffset(offset)));
     }
 
     @Override
@@ -149,11 +162,13 @@ public final class ItemFinderServiceImpl implements ItemFinderService {
 
     @Override
     public List<NearbyInventoryItem> searchInventoryItemsNearPoint(final UUID userId, final double latitude,
-            final double longitude, final Double radiusMeters, final Integer limit) throws SQLException {
+            final double longitude, final Double radiusMeters, final Integer limit, final Integer offset)
+            throws SQLException {
         requireUser(userId);
         final var safeRadius = radiusMeters == null || radiusMeters <= 0 ? 1000D : radiusMeters;
         return mapper.toNearbyInventoryItems(
-                searchRepository.searchInventoryItemsNearPoint(userId, latitude, longitude, safeRadius, normalizeLimit(limit)));
+                searchRepository.searchInventoryItemsNearPoint(userId, latitude, longitude, safeRadius,
+                        normalizeLimit(limit), normalizeOffset(offset)));
     }
 
     @Override
@@ -179,5 +194,15 @@ public final class ItemFinderServiceImpl implements ItemFinderService {
             return def;
         }
         return Math.min(value, 200);
+    }
+
+    private static int normalizeOffset(final Integer value) {
+        if (value == null) {
+            return 0;
+        }
+        if (value < 0) {
+            throw new IllegalArgumentException("offset must be >= 0");
+        }
+        return value;
     }
 }

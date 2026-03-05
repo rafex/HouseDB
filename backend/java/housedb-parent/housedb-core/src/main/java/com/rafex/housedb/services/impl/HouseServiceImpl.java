@@ -66,23 +66,27 @@ public final class HouseServiceImpl implements HouseService {
     }
 
     @Override
-    public List<HouseSummary> listUserHouses(final UUID userId, final Boolean includeDisabled, final Integer limit)
+    public List<HouseSummary> listUserHouses(final UUID userId, final Boolean includeDisabled, final Integer limit,
+            final Integer offset)
             throws SQLException {
         if (userId == null) {
             throw new IllegalArgumentException("userId is required");
         }
         return mapper.toHouseSummaries(repository.listUserHouses(userId,
-                includeDisabled == null ? Boolean.FALSE : includeDisabled, normalizeLimit(limit, 200)));
+                includeDisabled == null ? Boolean.FALSE : includeDisabled, normalizeLimit(limit, 200),
+                normalizeOffset(offset)));
     }
 
     @Override
-    public List<HouseMember> listHouseMembers(final UUID houseId, final Boolean includeDisabled, final Integer limit)
+    public List<HouseMember> listHouseMembers(final UUID houseId, final Boolean includeDisabled, final Integer limit,
+            final Integer offset)
             throws SQLException {
         if (houseId == null) {
             throw new IllegalArgumentException("houseId is required");
         }
         return mapper.toHouseMembers(repository.listHouseMembers(houseId,
-                includeDisabled == null ? Boolean.FALSE : includeDisabled, normalizeLimit(limit, 200)));
+                includeDisabled == null ? Boolean.FALSE : includeDisabled, normalizeLimit(limit, 200),
+                normalizeOffset(offset)));
     }
 
     private static int normalizeLimit(final Integer value, final int max) {
@@ -90,5 +94,15 @@ public final class HouseServiceImpl implements HouseService {
             return DEFAULT_LIMIT;
         }
         return Math.min(value, max);
+    }
+
+    private static int normalizeOffset(final Integer value) {
+        if (value == null) {
+            return 0;
+        }
+        if (value < 0) {
+            throw new IllegalArgumentException("offset must be >= 0");
+        }
+        return value;
     }
 }

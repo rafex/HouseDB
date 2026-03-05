@@ -16,7 +16,9 @@ public interface HouseService {
 
     HouseMember upsertHouseMember(UUID houseId, UUID userId, String role, Boolean enabled) throws SQLException;
 
-    List<HouseSummary> listUserHouses(UUID userId, Boolean includeDisabled, Integer limit) throws SQLException;
+    List<HouseSummary> listUserHouses(UUID userId, Boolean includeDisabled, Integer limit, Integer offset)
+            throws SQLException;
 
-    List<HouseMember> listHouseMembers(UUID houseId, Boolean includeDisabled, Integer limit) throws SQLException;
+    List<HouseMember> listHouseMembers(UUID houseId, Boolean includeDisabled, Integer limit, Integer offset)
+            throws SQLException;
 }

@@ -2,6 +2,7 @@ package com.rafex.housedb.handlers.items;
 
 import com.rafex.housedb.dtos.CreateInventoryItemRequest;
 import com.rafex.housedb.handlers.AuthzSupport;
+import com.rafex.housedb.handlers.ExchangeAdapters;
 import com.rafex.housedb.http.HttpUtil;
 import com.rafex.housedb.json.JsonUtil;
 import com.rafex.housedb.kiwi.KiwiApiClient;
@@ -12,8 +13,8 @@ import java.util.LinkedHashMap;
 import java.util.logging.Logger;
 
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
-import org.eclipse.jetty.util.Callback;
+
+import dev.rafex.ether.http.core.HttpExchange;
 
 final class InventoryCreateHandler {
 
@@ -27,10 +28,11 @@ final class InventoryCreateHandler {
         this.kiwiApiClient = kiwiApiClient;
     }
 
-    boolean handle(final Request request, final Response response, final Callback callback) {
-        return EndpointSupport.execute(LOG, response, callback, () -> {
+    boolean handle(final HttpExchange x) {
+        return EndpointSupport.execute(LOG, x, () -> {
+            final Request request = ExchangeAdapters.request(x);
             final var body = JsonUtil.MAPPER.readValue(Request.asInputStream(request), CreateInventoryItemRequest.class);
-            final var userId = AuthzSupport.requireTokenUser(request);
+            final var userId = AuthzSupport.requireTokenUser(x);
             final var kiwiLocationId = service.findKiwiLocationIdByHouseLocationId(body.houseLocationLeafId());
             if (kiwiLocationId == null) {
                 throw new IllegalArgumentException("houseLocationLeafId is not synchronized with kiwi location");
@@ -63,7 +65,7 @@ final class InventoryCreateHandler {
             payload.put("inventoryItemId", result.inventoryItemId());
             payload.put("itemMovementId", result.itemMovementId());
             payload.put("objectId", objectId);
-            HttpUtil.ok(response, callback, payload);
+            HttpUtil.ok(x, payload);
         });
     }
 }

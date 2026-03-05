@@ -6,36 +6,31 @@ import java.sql.SQLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.jetty.server.Response;
-import org.eclipse.jetty.util.Callback;
+import dev.rafex.ether.http.core.HttpExchange;
 
 final class UsersEndpointSupport {
 
     private UsersEndpointSupport() {
     }
 
-    interface EndpointAction {
-        void run() throws Exception;
-    }
-
-    static boolean execute(final Logger logger, final Response response, final Callback callback,
-            final EndpointAction action) {
+    static boolean execute(final Logger logger, final HttpExchange exchange,
+            final AutoCloseable action) {
         try {
-            action.run();
+            action.close();
             return true;
         } catch (final SecurityException e) {
-            HttpUtil.forbidden(response, callback, e.getMessage());
+            HttpUtil.forbidden(exchange, e.getMessage());
             return true;
         } catch (final IllegalArgumentException e) {
-            HttpUtil.badRequest(response, callback, e.getMessage());
+            HttpUtil.badRequest(exchange, e.getMessage());
             return true;
         } catch (final SQLException e) {
             logger.log(Level.SEVERE, "SQL error handling request", e);
-            HttpUtil.internalServerError(response, callback, "database error");
+            HttpUtil.internalServerError(exchange, "database error");
             return true;
         } catch (final Exception e) {
             logger.log(Level.SEVERE, "Unhandled error", e);
-            HttpUtil.internalServerError(response, callback, "internal error");
+            HttpUtil.internalServerError(exchange, "internal error");
             return true;
         }
     }

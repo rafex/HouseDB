@@ -57,7 +57,7 @@ public final class HouseRepositoryImpl implements HouseManagementRepository {
                    role,
                    member_enabled,
                    house_enabled
-              FROM api_list_user_houses(?, ?, ?)
+              FROM api_list_user_houses(?, ?, ?, ?)
             """;
     private static final String SQL_LIST_HOUSE_MEMBERS = """
             SELECT house_member_id,
@@ -65,7 +65,7 @@ public final class HouseRepositoryImpl implements HouseManagementRepository {
                    user_id,
                    role,
                    enabled
-              FROM api_list_house_members(?, ?, ?)
+              FROM api_list_house_members(?, ?, ?, ?)
             """;
 
     private final DataSource dataSource;
@@ -133,7 +133,8 @@ public final class HouseRepositoryImpl implements HouseManagementRepository {
     }
 
     @Override
-    public List<HouseSummaryEntity> listUserHouses(final UUID userId, final Boolean includeDisabled, final int limit)
+    public List<HouseSummaryEntity> listUserHouses(final UUID userId, final Boolean includeDisabled, final int limit,
+            final int offset)
             throws SQLException {
         final var result = new ArrayList<HouseSummaryEntity>();
         try (Connection connection = dataSource.getConnection();
@@ -141,6 +142,7 @@ public final class HouseRepositoryImpl implements HouseManagementRepository {
             ps.setObject(1, userId);
             ps.setObject(2, includeDisabled);
             ps.setInt(3, limit);
+            ps.setInt(4, offset);
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -161,7 +163,8 @@ public final class HouseRepositoryImpl implements HouseManagementRepository {
     }
 
     @Override
-    public List<HouseMemberEntity> listHouseMembers(final UUID houseId, final Boolean includeDisabled, final int limit)
+    public List<HouseMemberEntity> listHouseMembers(final UUID houseId, final Boolean includeDisabled, final int limit,
+            final int offset)
             throws SQLException {
         final var result = new ArrayList<HouseMemberEntity>();
         try (Connection connection = dataSource.getConnection();
@@ -169,6 +172,7 @@ public final class HouseRepositoryImpl implements HouseManagementRepository {
             ps.setObject(1, houseId);
             ps.setObject(2, includeDisabled);
             ps.setInt(3, limit);
+            ps.setInt(4, offset);
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {

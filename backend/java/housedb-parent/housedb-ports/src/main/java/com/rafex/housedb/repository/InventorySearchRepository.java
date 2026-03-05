@@ -13,15 +13,16 @@ import com.rafex.housedb.repository.models.NearbyInventoryItemEntity;
 public interface InventorySearchRepository {
 
     List<HouseItemEntity> searchInventoryItems(UUID userId, String text, UUID houseId, UUID houseLocationLeafId,
-            int limit) throws SQLException;
+            int limit, int offset) throws SQLException;
 
     List<LocationInventoryItemEntity> listInventoryByLocation(UUID userId, UUID houseId, UUID houseLocationId,
-            Boolean includeDescendants, int limit) throws SQLException;
+            Boolean includeDescendants, int limit, int offset) throws SQLException;
 
-    List<InventoryTimelineEventEntity> inventoryItemTimeline(UUID inventoryItemId, int limit) throws SQLException;
+    List<InventoryTimelineEventEntity> inventoryItemTimeline(UUID inventoryItemId, int limit, int offset)
+            throws SQLException;
 
     List<NearbyInventoryItemEntity> searchInventoryItemsNearPoint(UUID userId, double latitude, double longitude,
-            double radiusMeters, int limit) throws SQLException;
+            double radiusMeters, int limit, int offset) throws SQLException;
 
     InventoryItemDetailEntity getInventoryItemDetail(UUID inventoryItemId) throws SQLException;
 }

@@ -14,9 +14,8 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-      <version>${jackson.version}</version>
+      <groupId>dev.rafex.ether.jwt</groupId>
+      <artifactId>ether-jwt</artifactId>
     </dependency>
   </dependencies>
 </project>

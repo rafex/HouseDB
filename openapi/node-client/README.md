@@ -37,6 +37,10 @@ npm run web
 
 ```bash
 npm run health
+npm run start -- hello
+npm run start -- hello-name
+npm run start -- hello-name -- --name Rafex
+npm run start -- hello-name-post -- --name Rafex
 npm run start -- login --username demo --password secret
 npm run start -- token --client-id app1 --client-secret supersecret
 npm run start -- get-item --id UUID

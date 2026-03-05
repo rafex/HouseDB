@@ -3,28 +3,35 @@ package com.rafex.housedb.handlers.users;
 import com.rafex.housedb.repository.UserRepository;
 import com.rafex.housedb.security.PasswordHasherPBKDF2;
 
-import org.eclipse.jetty.server.Handler;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
-import org.eclipse.jetty.util.Callback;
+import java.util.List;
+import java.util.Set;
 
-public final class UsersRouterHandler extends Handler.Abstract {
+import dev.rafex.ether.http.core.HttpExchange;
+import dev.rafex.ether.http.core.Route;
+import dev.rafex.ether.http.jetty12.NonBlockingResourceHandler;
+import dev.rafex.ether.json.JsonCodec;
+
+public final class UsersRouterHandler extends NonBlockingResourceHandler {
 
     private final CreateUserHandler createUserHandler;
 
-    public UsersRouterHandler(final UserRepository userRepository, final PasswordHasherPBKDF2 hasher) {
+    public UsersRouterHandler(final JsonCodec jsonCodec, final UserRepository userRepository, final PasswordHasherPBKDF2 hasher) {
+        super(jsonCodec);
         createUserHandler = new CreateUserHandler(userRepository, hasher);
     }
 
     @Override
-    public boolean handle(final Request request, final Response response, final Callback callback) {
-        final String method = request.getMethod();
-        final String path = request.getHttpURI().getPath();
+    protected String basePath() {
+        return "/users";
+    }
 
-        if ("POST".equals(method) && "/users".equals(path)) {
-            return createUserHandler.handle(request, response, callback);
-        }
+    @Override
+    protected List<Route> routes() {
+        return List.of(Route.of("/", Set.of("POST")));
+    }
 
-        return false;
+    @Override
+    public boolean post(final HttpExchange x) {
+        return createUserHandler.handle(x);
     }
 }

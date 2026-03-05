@@ -1,19 +1,22 @@
 package com.rafex.housedb.security;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
+import java.time.Duration;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import dev.rafex.ether.jwt.DefaultTokenIssuer;
+import dev.rafex.ether.jwt.DefaultTokenVerifier;
+import dev.rafex.ether.jwt.JwtConfig;
+import dev.rafex.ether.jwt.KeyProvider;
+import dev.rafex.ether.jwt.TokenClaims;
+import dev.rafex.ether.jwt.TokenIssuer;
+import dev.rafex.ether.jwt.TokenSpec;
+import dev.rafex.ether.jwt.TokenType;
+import dev.rafex.ether.jwt.TokenVerifier;
 
 public final class JwtService {
 
@@ -31,25 +34,25 @@ public final class JwtService {
         }
     }
 
-    private static final TypeReference<Map<String, Object>> MAP = new TypeReference<>() {
-    };
-    private static final Base64.Encoder B64U_ENC = Base64.getUrlEncoder().withoutPadding();
-    private static final Base64.Decoder B64U_DEC = Base64.getUrlDecoder();
-
-    private final ObjectMapper mapper;
     private final String iss;
     private final String aud;
-    private final byte[] secret;
+    private final TokenIssuer tokenIssuer;
+    private final TokenVerifier tokenVerifier;
 
     public JwtService(final ObjectMapper mapper, final String iss, final String aud, final String secret) {
-        this.mapper = Objects.requireNonNull(mapper);
-        this.iss = Objects.requireNonNull(iss);
-        this.aud = Objects.requireNonNull(aud);
-
+        Objects.requireNonNull(mapper, "mapper");
+        this.iss = Objects.requireNonNull(iss, "iss");
+        this.aud = Objects.requireNonNull(aud, "aud");
         if (secret == null || secret.length() < 32) {
             throw new IllegalArgumentException("JWT_SECRET demasiado corto (usa >= 32 chars).");
         }
-        this.secret = secret.getBytes(StandardCharsets.UTF_8);
+
+        final var config = JwtConfig.builder(KeyProvider.hmac(secret))
+                .expectedIssuer(iss)
+                .expectedAudience(aud)
+                .build();
+        this.tokenIssuer = new DefaultTokenIssuer(config);
+        this.tokenVerifier = new DefaultTokenVerifier(config);
     }
 
     public String mint(final String sub, final long ttlSeconds) {
@@ -57,188 +60,57 @@ public final class JwtService {
     }
 
     public String mint(final String sub, final Collection<String> roles, final long ttlSeconds) {
-        return mintInternal(sub, roles, ttlSeconds, "user", null);
+        return mintInternal(sub, roles, ttlSeconds, TokenType.USER, null);
     }
 
     public String mintApp(final String sub, final String clientId, final Collection<String> roles, final long ttlSeconds) {
-        return mintInternal(sub, roles, ttlSeconds, "app", clientId);
+        return mintInternal(sub, roles, ttlSeconds, TokenType.APP, clientId);
     }
 
     private String mintInternal(final String sub, final Collection<String> roles, final long ttlSeconds,
-            final String tokenType, final String clientId) {
-        final var now = Instant.now().getEpochSecond();
-        final var exp = now + ttlSeconds;
+            final TokenType tokenType, final String clientId) {
+        final String[] safeRoles = roles == null ? new String[0] : roles.stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(role -> !role.isBlank())
+                .toArray(String[]::new);
 
-        final var headerJson = "{\"alg\":\"HS256\",\"typ\":\"JWT\"}";
-        final var rolesJson = rolesToJsonArray(roles);
-
-        final var payloadJson = "{"
-                + "\"sub\":\"" + escapeJson(sub) + "\","
-                + "\"iss\":\"" + escapeJson(iss) + "\","
-                + "\"aud\":\"" + escapeJson(aud) + "\","
-                + "\"iat\":" + now + ","
-                + "\"exp\":" + exp + ","
-                + "\"roles\":" + rolesJson + ","
-                + "\"token_type\":\"" + escapeJson(tokenType) + "\""
-                + (clientId == null || clientId.isBlank() ? "" : ",\"client_id\":\"" + escapeJson(clientId) + "\"")
-                + "}";
-
-        final var h = b64u(headerJson.getBytes(StandardCharsets.UTF_8));
-        final var p = b64u(payloadJson.getBytes(StandardCharsets.UTF_8));
-        final var signingInput = h + "." + p;
-
-        final var sig = hmacSha256(secret, signingInput.getBytes(StandardCharsets.UTF_8));
-        return signingInput + "." + b64u(sig);
+        final var builder = TokenSpec.builder()
+                .subject(sub)
+                .issuer(iss)
+                .audience(aud)
+                .tokenType(tokenType)
+                .roles(safeRoles)
+                .ttl(Duration.ofSeconds(ttlSeconds));
+        if (clientId != null && !clientId.isBlank()) {
+            builder.clientId(clientId);
+        }
+        return tokenIssuer.issue(builder.build());
     }
 
     public VerifyResult verify(final String token, final long nowEpochSeconds) {
-        try {
-            final var parts = token.split("\\.");
-            if (parts.length != 3) {
-                return VerifyResult.bad("bad_format");
-            }
-
-            final var h = parts[0];
-            final var p = parts[1];
-            final var s = parts[2];
-
-            final var headerJson = new String(b64uDec(h), StandardCharsets.UTF_8);
-            final Map<String, Object> header = mapper.readValue(headerJson, MAP);
-            final var alg = header.get("alg");
-            if (!"HS256".equals(alg)) {
-                return VerifyResult.bad("unsupported_alg");
-            }
-
-            final var signingInput = h + "." + p;
-            final var expected = hmacSha256(secret, signingInput.getBytes(StandardCharsets.UTF_8));
-            final var provided = b64uDec(s);
-            if (!MessageDigest.isEqual(expected, provided)) {
-                return VerifyResult.bad("bad_signature");
-            }
-
-            final var payloadJson = new String(b64uDec(p), StandardCharsets.UTF_8);
-            final Map<String, Object> payload = mapper.readValue(payloadJson, MAP);
-
-            final var sub = asString(payload.get("sub"));
-            final var issGot = asString(payload.get("iss"));
-            final var audGot = asString(payload.get("aud"));
-            final var exp = asLong(payload.get("exp"));
-            final var roles = asStringList(payload.get("roles"));
-            var tokenType = asString(payload.get("token_type"));
-            final var clientId = asString(payload.get("client_id"));
-
-            if (sub == null || sub.isBlank()) {
-                return VerifyResult.bad("missing_sub");
-            }
-            if (exp == null) {
-                return VerifyResult.bad("missing_exp");
-            }
-            if (nowEpochSeconds >= exp) {
-                return VerifyResult.bad("token_expired");
-            }
-            if (!Objects.equals(iss, issGot)) {
-                return VerifyResult.bad("bad_iss");
-            }
-            if (!Objects.equals(aud, audGot)) {
-                return VerifyResult.bad("bad_aud");
-            }
-            if (tokenType == null || tokenType.isBlank()) {
-                tokenType = "user";
-            }
-            if (!"user".equals(tokenType) && !"app".equals(tokenType)) {
-                return VerifyResult.bad("bad_token_type");
-            }
-            if ("app".equals(tokenType) && (clientId == null || clientId.isBlank())) {
-                return VerifyResult.bad("missing_client_id");
-            }
-
-            return VerifyResult.ok(new AuthContext(sub, exp, issGot, audGot, roles, tokenType, clientId));
-        } catch (final Exception e) {
+        final var result = tokenVerifier.verify(token, Instant.ofEpochSecond(nowEpochSeconds));
+        if (!result.ok()) {
+            return VerifyResult.bad(result.code());
+        }
+        final var claims = result.claims().orElse(null);
+        if (claims == null) {
             return VerifyResult.bad("verify_exception");
         }
+        return VerifyResult.ok(mapAuthContext(claims));
     }
 
-    private static byte[] hmacSha256(final byte[] secret, final byte[] data) {
-        try {
-            final var mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(secret, "HmacSHA256"));
-            return mac.doFinal(data);
-        } catch (final Exception e) {
-            throw new IllegalStateException("HMAC failed", e);
-        }
-    }
-
-    private static String b64u(final byte[] bytes) {
-        return B64U_ENC.encodeToString(bytes);
-    }
-
-    private static byte[] b64uDec(final String s) {
-        return B64U_DEC.decode(s);
-    }
-
-    private static String asString(final Object o) {
-        return o == null ? null : String.valueOf(o);
-    }
-
-    private static Long asLong(final Object o) {
-        if (o == null) {
-            return null;
-        }
-        if (o instanceof final Number n) {
-            return n.longValue();
-        }
-        try {
-            return Long.parseLong(String.valueOf(o));
-        } catch (final NumberFormatException e) {
-            return null;
-        }
-    }
-
-    private static List<String> asStringList(final Object o) {
-        if (o == null) {
-            return List.of();
-        }
-
-        if (o instanceof final List<?> list) {
-            return list.stream().filter(Objects::nonNull).map(String::valueOf).filter(s -> !s.isBlank()).toList();
-        }
-
-        final var s = String.valueOf(o);
-        if (s.isBlank()) {
-            return List.of();
-        }
-        return List.of(s);
-    }
-
-    private static String rolesToJsonArray(final Collection<String> roles) {
-        if (roles == null || roles.isEmpty()) {
-            return "[]";
-        }
-        final var sb = new StringBuilder();
-        sb.append('[');
-        var first = true;
-        for (final var role : roles) {
-            if (role == null) {
-                continue;
-            }
-            final var value = role.trim();
-            if (value.isEmpty()) {
-                continue;
-            }
-            if (!first) {
-                sb.append(',');
-            }
-            sb.append('"').append(escapeJson(value)).append('"');
-            first = false;
-        }
-        sb.append(']');
-        return sb.toString();
-    }
-
-    private static String escapeJson(final String s) {
-        if (s == null) {
-            return "";
-        }
-        return s.replace("\\", "\\\\").replace("\"", "\\\"");
+    private AuthContext mapAuthContext(final TokenClaims claims) {
+        final var tokenType = claims.tokenType() == null ? "user" : claims.tokenType().claimValue();
+        final var audValue = claims.audience().isEmpty() ? null : claims.audience().get(0);
+        final var expiresAt = claims.expiresAt() == null ? 0L : claims.expiresAt().getEpochSecond();
+        return new AuthContext(
+                claims.subject(),
+                expiresAt,
+                claims.issuer(),
+                audValue,
+                claims.roles(),
+                tokenType,
+                claims.clientId());
     }
 }

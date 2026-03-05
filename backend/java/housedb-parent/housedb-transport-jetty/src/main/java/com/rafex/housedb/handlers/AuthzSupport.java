@@ -8,6 +8,9 @@ import java.util.UUID;
 
 import org.eclipse.jetty.server.Request;
 
+import dev.rafex.ether.http.core.HttpExchange;
+import dev.rafex.ether.http.jetty12.JettyAuthHandler;
+
 public final class AuthzSupport {
 
     private AuthzSupport() {
@@ -38,6 +41,10 @@ public final class AuthzSupport {
         return requestedUserId;
     }
 
+    public static UUID requireAuthorizedUser(final HttpExchange exchange, final UUID requestedUserId) {
+        return requireAuthorizedUser(ExchangeAdapters.request(exchange), requestedUserId);
+    }
+
     public static UUID resolveRequestedOrTokenUser(final Request request, final UUID requestedUserId) {
         Objects.requireNonNull(request, "request");
         if (requestedUserId != null) {
@@ -56,6 +63,10 @@ public final class AuthzSupport {
         }
     }
 
+    public static UUID resolveRequestedOrTokenUser(final HttpExchange exchange, final UUID requestedUserId) {
+        return resolveRequestedOrTokenUser(ExchangeAdapters.request(exchange), requestedUserId);
+    }
+
     public static UUID requireTokenUser(final Request request) {
         Objects.requireNonNull(request, "request");
         final var auth = requireAuthContext(request);
@@ -69,6 +80,10 @@ public final class AuthzSupport {
         }
     }
 
+    public static UUID requireTokenUser(final HttpExchange exchange) {
+        return requireTokenUser(ExchangeAdapters.request(exchange));
+    }
+
     public static void requireAppOrAdmin(final Request request) {
         Objects.requireNonNull(request, "request");
         final var auth = requireAuthContext(request);
@@ -78,8 +93,12 @@ public final class AuthzSupport {
         throw new SecurityException("forbidden: admin or app token required");
     }
 
+    public static void requireAppOrAdmin(final HttpExchange exchange) {
+        requireAppOrAdmin(ExchangeAdapters.request(exchange));
+    }
+
     private static JwtService.AuthContext requireAuthContext(final Request request) {
-        final var auth = request.getAttribute(JwtAuthHandler.REQ_ATTR_AUTH);
+        final var auth = request.getAttribute(JettyAuthHandler.REQ_ATTR_AUTH);
         if (auth instanceof JwtService.AuthContext ctx) {
             return ctx;
         }

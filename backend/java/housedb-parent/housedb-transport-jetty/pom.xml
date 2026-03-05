@@ -33,17 +33,12 @@
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
-			<groupId>org.eclipse.jetty</groupId>
-			<artifactId>jetty-server</artifactId>
+			<groupId>dev.rafex.ether.http</groupId>
+			<artifactId>ether-http-jetty12</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-databind</artifactId>
-			<version>${jackson.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.fasterxml.jackson.datatype</groupId>
-			<artifactId>jackson-datatype-jsr310</artifactId>
+			<groupId>dev.rafex.ether.json</groupId>
+			<artifactId>ether-json</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>

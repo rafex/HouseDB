@@ -17,6 +17,9 @@ Uso:
 
 Comandos:
   health
+  hello
+  hello-name [--name NOMBRE]
+  hello-name-post [--name NOMBRE]
   login --username USER --password PASS
   login-basic --username USER --password PASS
   token --client-id ID --client-secret SECRET [--grant-type client_credentials]
@@ -73,6 +76,22 @@ async function main() {
     switch (command) {
       case "health":
         res = await client.health();
+        break;
+
+      case "hello":
+        res = await client.hello();
+        break;
+
+      case "hello-name":
+        res = await client.helloName({
+          name: argValue("--name") || undefined
+        });
+        break;
+
+      case "hello-name-post":
+        res = await client.helloNamePost({
+          name: argValue("--name") || undefined
+        });
         break;
 
       case "login":
@@ -189,9 +208,18 @@ async function main() {
 
       case "demo": {
         const health = await client.health();
+        const hello = await client.hello();
+        const helloName = await client.helloName({ name: "Demo" });
         const houses = await client.listHouses();
         const houseIds = await client.listHouseIds();
-        printJson({ health: health.data, houses: houses.data, houseIds: houseIds.data, baseUrl: client.baseUrl });
+        printJson({
+          health: health.data,
+          hello: hello.data,
+          helloName: helloName.data,
+          houses: houses.data,
+          houseIds: houseIds.data,
+          baseUrl: client.baseUrl
+        });
         return;
       }
 

@@ -1,15 +1,14 @@
 package com.rafex.housedb.handlers.houses;
 
 import com.rafex.housedb.handlers.AuthzSupport;
+import com.rafex.housedb.handlers.ExchangeAdapters;
 import com.rafex.housedb.http.HttpUtil;
 import com.rafex.housedb.services.HouseService;
 
 import java.util.Map;
 import java.util.logging.Logger;
 
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
-import org.eclipse.jetty.util.Callback;
+import dev.rafex.ether.http.core.HttpExchange;
 
 final class ListHousesHandler {
 
@@ -21,15 +20,16 @@ final class ListHousesHandler {
         this.service = service;
     }
 
-    boolean handle(final Request request, final Response response, final Callback callback) {
-        return HouseEndpointSupport.execute(LOG, response, callback, () -> {
-            final var query = HouseRequestParsers.parseQuery(request.getHttpURI().getQuery());
+    boolean handle(final HttpExchange x) {
+        return HouseEndpointSupport.execute(LOG, x, () -> {
+            final var query = HouseRequestParsers.parseQuery(ExchangeAdapters.rawQuery(x));
             final var includeDisabled = HouseRequestParsers.parseOptionalBoolean(query, "includeDisabled");
             final var limit = HouseRequestParsers.parseOptionalInt(query, "limit");
+            final var offset = HouseRequestParsers.parseOptionalInt(query, "offset");
 
-            final var userId = AuthzSupport.requireTokenUser(request);
-            final var houses = service.listUserHouses(userId, includeDisabled, limit);
-            HttpUtil.ok(response, callback, Map.of("houses", houses, "count", houses.size()));
+            final var userId = AuthzSupport.requireTokenUser(x);
+            final var houses = service.listUserHouses(userId, includeDisabled, limit, offset);
+            HttpUtil.ok(x, Map.of("houses", houses, "count", houses.size()));
         });
     }
 }

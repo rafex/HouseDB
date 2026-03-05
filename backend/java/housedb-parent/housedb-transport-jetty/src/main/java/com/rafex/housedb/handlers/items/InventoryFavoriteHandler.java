@@ -2,6 +2,7 @@ package com.rafex.housedb.handlers.items;
 
 import com.rafex.housedb.dtos.SetFavoriteRequest;
 import com.rafex.housedb.handlers.AuthzSupport;
+import com.rafex.housedb.handlers.ExchangeAdapters;
 import com.rafex.housedb.http.HttpUtil;
 import com.rafex.housedb.json.JsonUtil;
 import com.rafex.housedb.services.ItemFinderService;
@@ -10,8 +11,8 @@ import java.util.UUID;
 import java.util.logging.Logger;
 
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
-import org.eclipse.jetty.util.Callback;
+
+import dev.rafex.ether.http.core.HttpExchange;
 
 final class InventoryFavoriteHandler {
 
@@ -23,12 +24,13 @@ final class InventoryFavoriteHandler {
         this.service = service;
     }
 
-    boolean handle(final Request request, final Response response, final Callback callback, final UUID inventoryItemId) {
-        return EndpointSupport.execute(LOG, response, callback, () -> {
+    boolean handle(final HttpExchange x, final UUID inventoryItemId) {
+        return EndpointSupport.execute(LOG, x, () -> {
+            final Request request = ExchangeAdapters.request(x);
             final var body = JsonUtil.MAPPER.readValue(Request.asInputStream(request), SetFavoriteRequest.class);
-            final var userId = AuthzSupport.requireTokenUser(request);
+            final var userId = AuthzSupport.requireTokenUser(x);
             final var state = service.setFavoriteItem(userId, inventoryItemId, body.isFavorite(), body.note());
-            HttpUtil.ok(response, callback, state);
+            HttpUtil.ok(x, state);
         });
     }
 }

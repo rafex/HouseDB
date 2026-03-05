@@ -2,6 +2,7 @@ package com.rafex.housedb.handlers.users;
 
 import com.rafex.housedb.dtos.CreateUserRequest;
 import com.rafex.housedb.handlers.AuthzSupport;
+import com.rafex.housedb.handlers.ExchangeAdapters;
 import com.rafex.housedb.http.HttpUtil;
 import com.rafex.housedb.json.JsonUtil;
 import com.rafex.housedb.repository.UserRepository;
@@ -13,8 +14,8 @@ import java.util.UUID;
 import java.util.logging.Logger;
 
 import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
-import org.eclipse.jetty.util.Callback;
+
+import dev.rafex.ether.http.core.HttpExchange;
 
 final class CreateUserHandler {
 
@@ -32,10 +33,11 @@ final class CreateUserHandler {
         pbkdf2Iterations = Math.max(10000, parseIntEnv("AUTH_PBKDF2_ITERATIONS", 120000));
     }
 
-    boolean handle(final Request request, final Response response, final Callback callback) {
-        return UsersEndpointSupport.execute(LOG, response, callback, () -> {
-            AuthzSupport.requireAppOrAdmin(request);
+    boolean handle(final HttpExchange x) {
+        return UsersEndpointSupport.execute(LOG, x, () -> {
+            AuthzSupport.requireAppOrAdmin(x);
 
+            final Request request = ExchangeAdapters.request(x);
             final var body = JsonUtil.MAPPER.readValue(Request.asInputStream(request), CreateUserRequest.class);
             final var username = requireText(body.username(), "username");
             final var password = requireText(body.password(), "password");
@@ -51,7 +53,7 @@ final class CreateUserHandler {
             } finally {
                 Arrays.fill(passChars, '\0');
             }
-            HttpUtil.ok(response, callback, Map.of("userId", userId, "username", username));
+            HttpUtil.ok(x, Map.of("userId", userId, "username", username));
         });
     }
 

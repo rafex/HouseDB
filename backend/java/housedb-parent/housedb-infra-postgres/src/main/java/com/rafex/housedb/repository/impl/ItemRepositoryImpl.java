@@ -41,7 +41,7 @@ public final class ItemRepositoryImpl
                    house_location_leaf_id,
                    house_location_path,
                    rank
-              FROM api_search_inventory_items(?, ?, ?, ?, ?)
+              FROM api_search_inventory_items(?, ?, ?, ?, ?, ?)
             """;
 
     private static final String SQL_MOVE = """
@@ -128,7 +128,7 @@ public final class ItemRepositoryImpl
                    house_location_leaf_id,
                    house_location_path,
                    assigned_at
-              FROM api_list_inventory_by_location(?, ?, ?, ?, ?)
+              FROM api_list_inventory_by_location(?, ?, ?, ?, ?, ?)
             """;
 
     private static final String SQL_TIMELINE = """
@@ -142,7 +142,7 @@ public final class ItemRepositoryImpl
                    to_house_location_leaf_id,
                    to_house_location_path,
                    notes
-              FROM api_inventory_item_timeline(?, ?)
+              FROM api_inventory_item_timeline(?, ?, ?)
             """;
 
     private static final String SQL_SET_FAVORITE = """
@@ -161,7 +161,7 @@ public final class ItemRepositoryImpl
                    house_location_leaf_id,
                    house_location_path,
                    distance_meters
-              FROM api_search_inventory_items_near_point(?, ?, ?, ?, ?)
+              FROM api_search_inventory_items_near_point(?, ?, ?, ?, ?, ?)
             """;
     private static final String SQL_ITEM_DETAIL = """
             SELECT inventory_item_id,
@@ -190,7 +190,7 @@ public final class ItemRepositoryImpl
 
     @Override
     public List<HouseItemEntity> searchInventoryItems(final UUID userId, final String text, final UUID houseId,
-            final UUID houseLocationLeafId, final int limit) throws SQLException {
+            final UUID houseLocationLeafId, final int limit, final int offset) throws SQLException {
         final var result = new ArrayList<HouseItemEntity>();
 
         try (Connection connection = dataSource.getConnection();
@@ -200,6 +200,7 @@ public final class ItemRepositoryImpl
             ps.setObject(3, houseId);
             ps.setObject(4, houseLocationLeafId);
             ps.setInt(5, limit);
+            ps.setInt(6, offset);
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -358,7 +359,8 @@ public final class ItemRepositoryImpl
 
     @Override
     public List<LocationInventoryItemEntity> listInventoryByLocation(final UUID userId, final UUID houseId,
-            final UUID houseLocationId, final Boolean includeDescendants, final int limit) throws SQLException {
+            final UUID houseLocationId, final Boolean includeDescendants, final int limit, final int offset)
+            throws SQLException {
         final var result = new ArrayList<LocationInventoryItemEntity>();
 
         try (Connection connection = dataSource.getConnection();
@@ -368,6 +370,7 @@ public final class ItemRepositoryImpl
             ps.setObject(3, houseLocationId);
             ps.setObject(4, includeDescendants);
             ps.setInt(5, limit);
+            ps.setInt(6, offset);
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -389,7 +392,8 @@ public final class ItemRepositoryImpl
     }
 
     @Override
-    public List<InventoryTimelineEventEntity> inventoryItemTimeline(final UUID inventoryItemId, final int limit)
+    public List<InventoryTimelineEventEntity> inventoryItemTimeline(final UUID inventoryItemId, final int limit,
+            final int offset)
             throws SQLException {
         final var result = new ArrayList<InventoryTimelineEventEntity>();
 
@@ -397,6 +401,7 @@ public final class ItemRepositoryImpl
                 PreparedStatement ps = connection.prepareStatement(SQL_TIMELINE)) {
             ps.setObject(1, inventoryItemId);
             ps.setInt(2, limit);
+            ps.setInt(3, offset);
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -443,7 +448,7 @@ public final class ItemRepositoryImpl
 
     @Override
     public List<NearbyInventoryItemEntity> searchInventoryItemsNearPoint(final UUID userId, final double latitude,
-            final double longitude, final double radiusMeters, final int limit) throws SQLException {
+            final double longitude, final double radiusMeters, final int limit, final int offset) throws SQLException {
         final var result = new ArrayList<NearbyInventoryItemEntity>();
 
         try (Connection connection = dataSource.getConnection();
@@ -453,6 +458,7 @@ public final class ItemRepositoryImpl
             ps.setDouble(3, longitude);
             ps.setDouble(4, radiusMeters);
             ps.setInt(5, limit);
+            ps.setInt(6, offset);
 
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {

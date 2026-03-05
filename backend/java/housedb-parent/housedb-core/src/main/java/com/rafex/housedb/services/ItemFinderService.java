@@ -15,8 +15,10 @@ import com.rafex.housedb.service.models.NearbyInventoryItem;
 
 public interface ItemFinderService {
 
+    List<HouseItem> listOwnedInventoryItems(UUID userId, Integer limit, Integer offset) throws SQLException;
+
     List<HouseItem> searchInventoryItems(UUID userId, String text, UUID houseId, UUID houseLocationLeafId,
-            Integer limit) throws SQLException;
+            Integer limit, Integer offset) throws SQLException;
 
     ItemMovement moveInventoryItem(UUID inventoryItemId, UUID toHouseLocationLeafId, String movedBy,
             String movementReason, String notes) throws SQLException;
@@ -37,15 +39,16 @@ public interface ItemFinderService {
             Boolean enabled) throws SQLException;
 
     List<LocationInventoryItem> listInventoryByLocation(UUID userId, UUID houseId, UUID houseLocationId,
-            Boolean includeDescendants, Integer limit) throws SQLException;
+            Boolean includeDescendants, Integer limit, Integer offset) throws SQLException;
 
-    List<InventoryTimelineEvent> inventoryItemTimeline(UUID inventoryItemId, Integer limit) throws SQLException;
+    List<InventoryTimelineEvent> inventoryItemTimeline(UUID inventoryItemId, Integer limit, Integer offset)
+            throws SQLException;
 
     FavoriteState setFavoriteItem(UUID userId, UUID inventoryItemId, Boolean isFavorite, String note)
             throws SQLException;
 
     List<NearbyInventoryItem> searchInventoryItemsNearPoint(UUID userId, double latitude, double longitude,
-            Double radiusMeters, Integer limit) throws SQLException;
+            Double radiusMeters, Integer limit, Integer offset) throws SQLException;
 
     InventoryItemDetail getInventoryItemDetail(UUID inventoryItemId) throws SQLException;
 }

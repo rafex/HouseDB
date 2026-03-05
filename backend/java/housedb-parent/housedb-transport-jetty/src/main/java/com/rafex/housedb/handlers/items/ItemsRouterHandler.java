@@ -3,13 +3,18 @@ package com.rafex.housedb.handlers.items;
 import com.rafex.housedb.kiwi.KiwiApiClient;
 import com.rafex.housedb.services.ItemFinderService;
 
-import org.eclipse.jetty.server.Handler;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
-import org.eclipse.jetty.util.Callback;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
-public final class ItemsRouterHandler extends Handler.Abstract {
+import dev.rafex.ether.http.core.HttpExchange;
+import dev.rafex.ether.http.core.Route;
+import dev.rafex.ether.http.jetty12.NonBlockingResourceHandler;
+import dev.rafex.ether.json.JsonCodec;
 
+public final class ItemsRouterHandler extends NonBlockingResourceHandler {
+
+    private final InventoryListHandler listHandler;
     private final InventorySearchHandler searchHandler;
     private final InventoryNearbyHandler nearbyHandler;
     private final InventoryByLocationHandler byLocationHandler;
@@ -19,7 +24,9 @@ public final class ItemsRouterHandler extends Handler.Abstract {
     private final InventoryFavoriteHandler favoriteHandler;
     private final ItemDetailHandler itemDetailHandler;
 
-    public ItemsRouterHandler(final ItemFinderService service, final KiwiApiClient kiwiApiClient) {
+    public ItemsRouterHandler(final JsonCodec jsonCodec, final ItemFinderService service, final KiwiApiClient kiwiApiClient) {
+        super(jsonCodec);
+        listHandler = new InventoryListHandler(service);
         searchHandler = new InventorySearchHandler(service);
         nearbyHandler = new InventoryNearbyHandler(service);
         byLocationHandler = new InventoryByLocationHandler(service);
@@ -31,37 +38,71 @@ public final class ItemsRouterHandler extends Handler.Abstract {
     }
 
     @Override
-    public boolean handle(final Request request, final Response response, final Callback callback) {
-        final String method = request.getMethod();
-        final String path = request.getHttpURI().getPath();
+    protected String basePath() {
+        return "/items";
+    }
 
-        if ("GET".equals(method) && "/items/search".equals(path)) {
-            return searchHandler.handle(request, response, callback);
+    @Override
+    protected List<Route> routes() {
+        return List.of(
+                Route.of("/", Set.of("GET", "POST")),
+                Route.of("/search", Set.of("GET")),
+                Route.of("/nearby", Set.of("GET")),
+                Route.of("/by-location", Set.of("GET")),
+                Route.of("/{inventoryItemId}/move", Set.of("PATCH")),
+                Route.of("/{inventoryItemId}/timeline", Set.of("GET")),
+                Route.of("/{inventoryItemId}/favorite", Set.of("PUT")),
+                Route.of("/{itemId}", Set.of("GET")));
+    }
+
+    @Override
+    public boolean get(final HttpExchange x) {
+        final var path = x.path();
+        if ("/items".equals(path)) {
+            return listHandler.handle(x);
         }
-        if ("GET".equals(method) && "/items/nearby".equals(path)) {
-            return nearbyHandler.handle(request, response, callback);
+        if ("/items/search".equals(path)) {
+            return searchHandler.handle(x);
         }
-        if ("GET".equals(method) && "/items/by-location".equals(path)) {
-            return byLocationHandler.handle(request, response, callback);
+        if ("/items/nearby".equals(path)) {
+            return nearbyHandler.handle(x);
         }
-        if ("POST".equals(method) && "/items".equals(path)) {
-            return createHandler.handle(request, response, callback);
+        if ("/items/by-location".equals(path)) {
+            return byLocationHandler.handle(x);
         }
-        if ("PATCH".equals(method) && path.startsWith("/items/") && path.endsWith("/move")) {
-            final var inventoryItemId = ItemRequestParsers.extractInventoryItemId(path, "/move");
-            return moveHandler.handle(request, response, callback, inventoryItemId);
+        final var timelineId = x.pathParam("inventoryItemId");
+        if (timelineId != null && path.endsWith("/timeline")) {
+            return timelineHandler.handle(x, UUID.fromString(timelineId));
         }
-        if ("GET".equals(method) && path.startsWith("/items/") && path.endsWith("/timeline")) {
-            final var inventoryItemId = ItemRequestParsers.extractInventoryItemId(path, "/timeline");
-            return timelineHandler.handle(request, response, callback, inventoryItemId);
+        final var itemId = x.pathParam("itemId");
+        if (itemId != null) {
+            return itemDetailHandler.handle(x, UUID.fromString(itemId));
         }
-        if ("PUT".equals(method) && path.startsWith("/items/") && path.endsWith("/favorite")) {
-            final var inventoryItemId = ItemRequestParsers.extractInventoryItemId(path, "/favorite");
-            return favoriteHandler.handle(request, response, callback, inventoryItemId);
+        return false;
+    }
+
+    @Override
+    public boolean post(final HttpExchange x) {
+        if ("/items".equals(x.path())) {
+            return createHandler.handle(x);
         }
-        if ("GET".equals(method) && (path.startsWith("/items/") || path.startsWith("/item/"))) {
-            final var itemId = ItemRequestParsers.extractItemId(path);
-            return itemDetailHandler.handle(request, response, callback, itemId);
+        return false;
+    }
+
+    @Override
+    public boolean patch(final HttpExchange x) {
+        final var inventoryItemId = x.pathParam("inventoryItemId");
+        if (inventoryItemId != null) {
+            return moveHandler.handle(x, UUID.fromString(inventoryItemId));
+        }
+        return false;
+    }
+
+    @Override
+    public boolean put(final HttpExchange x) {
+        final var inventoryItemId = x.pathParam("inventoryItemId");
+        if (inventoryItemId != null) {
+            return favoriteHandler.handle(x, UUID.fromString(inventoryItemId));
         }
         return false;
     }

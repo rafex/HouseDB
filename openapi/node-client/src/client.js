@@ -53,6 +53,26 @@ export class HouseDbClient {
     return this.request("/health");
   }
 
+  hello() {
+    return this.request("/hello", { token: "" });
+  }
+
+  helloName({ name } = {}) {
+    const params = new URLSearchParams();
+    if (name) params.set("name", name);
+    const query = params.toString();
+    return this.request(`/hello/name${query ? `?${query}` : ""}`, { token: "" });
+  }
+
+  helloNamePost({ name } = {}) {
+    const body = name ? { name } : undefined;
+    return this.request("/hello/name", {
+      method: "POST",
+      body,
+      token: ""
+    });
+  }
+
   login({ username, password } = {}) {
     const payload = username || password ? { username, password } : undefined;
     return this.request("/auth/login", {

@@ -9,9 +9,7 @@ import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
-import org.eclipse.jetty.util.Callback;
+import dev.rafex.ether.http.core.HttpExchange;
 
 final class ItemDetailHandler {
 
@@ -25,11 +23,11 @@ final class ItemDetailHandler {
         this.itemService = itemService;
     }
 
-    boolean handle(final Request request, final Response response, final Callback callback, final UUID itemId) {
+    boolean handle(final HttpExchange x, final UUID itemId) {
         try {
             final var inventoryItem = itemService.getInventoryItemDetail(itemId);
             if (inventoryItem == null) {
-                HttpUtil.notFound(response, callback, request.getHttpURI().getPath());
+                HttpUtil.notFound(x, x.path());
                 return true;
             }
 
@@ -52,22 +50,22 @@ final class ItemDetailHandler {
                 }
             }
 
-            HttpUtil.ok(response, callback, payload);
+            HttpUtil.ok(x, payload);
             return true;
         } catch (final IllegalArgumentException e) {
-            HttpUtil.badRequest(response, callback, e.getMessage());
+            HttpUtil.badRequest(x, e.getMessage());
             return true;
         } catch (final KiwiApiClient.KiwiApiException e) {
             if (e.statusCode() == 404) {
-                HttpUtil.notFound(response, callback, request.getHttpURI().getPath());
+                HttpUtil.notFound(x, x.path());
                 return true;
             }
             LOG.log(Level.SEVERE, "Kiwi API error", e);
-            HttpUtil.internalServerError(response, callback, "kiwi api error");
+            HttpUtil.internalServerError(x, "kiwi api error");
             return true;
         } catch (final Exception e) {
             LOG.log(Level.SEVERE, "Unhandled error", e);
-            HttpUtil.internalServerError(response, callback, "internal error");
+            HttpUtil.internalServerError(x, "internal error");
             return true;
         }
     }

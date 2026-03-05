@@ -1,29 +1,19 @@
 package com.rafex.housedb.json;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+
+import dev.rafex.ether.json.JacksonJsonCodec;
+import dev.rafex.ether.json.JsonCodecBuilder;
 
 public final class JsonUtil {
 
-    public static final ObjectMapper MAPPER = createMapper();
+    public static final JacksonJsonCodec CODEC = JsonCodecBuilder.create().build();
+    public static final ObjectMapper MAPPER = CODEC.mapper();
 
     private JsonUtil() {
     }
 
-    private static ObjectMapper createMapper() {
-        final var mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        return mapper;
-    }
-
     public static String toJson(final Object value) {
-        try {
-            return MAPPER.writeValueAsString(value);
-        } catch (final JsonProcessingException e) {
-            throw new IllegalStateException("Error serializing object to JSON", e);
-        }
+        return CODEC.toJson(value);
     }
 }

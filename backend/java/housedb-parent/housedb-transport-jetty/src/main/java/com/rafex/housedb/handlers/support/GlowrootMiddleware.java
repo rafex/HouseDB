@@ -1,4 +1,4 @@
-package com.rafex.housedb.handlers;
+package com.rafex.housedb.handlers.support;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -10,39 +10,39 @@ import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.util.Callback;
 import org.glowroot.agent.api.Glowroot;
 
-public final class GlowrootNamingHandler extends Handler.Wrapper {
+import dev.rafex.ether.http.jetty12.JettyMiddleware;
 
-    private static final Logger LOG = Logger.getLogger(GlowrootNamingHandler.class.getName());
+public final class GlowrootMiddleware implements JettyMiddleware {
 
+    private static final Logger LOG = Logger.getLogger(GlowrootMiddleware.class.getName());
     private static final Pattern UUID_PATTERN = Pattern
             .compile("/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?=/|$)");
     private static final Pattern OBJECT_ID_PATTERN = Pattern.compile("/[0-9a-fA-F]{24}(?=/|$)");
     private static final Pattern NUMBER_PATTERN = Pattern.compile("/\\d{2,}(?=/|$)");
     private static final Pattern MULTIPLE_SLASHES_PATTERN = Pattern.compile("/{2,}");
 
-    public GlowrootNamingHandler(final Handler delegate) {
-        super(delegate);
-    }
-
     @Override
-    public boolean handle(final Request request, final Response response, final Callback callback) throws Exception {
-        final var method = request.getMethod();
-        final var path = request.getHttpURI() != null ? request.getHttpURI().getPath() : null;
-        final var normalizedPath = normalizePath(path);
-
-        setGlowrootAttributes(method, path, normalizedPath);
-
-        try {
-            return super.handle(request, response, callback);
-        } catch (final Throwable t) {
-            try {
-                Glowroot.addTransactionAttribute("error", t.getClass().getName());
-                Glowroot.addTransactionAttribute("error.message", safeMessage(t.getMessage()));
-            } catch (final Throwable ignored) {
-                LOG.log(Level.WARNING, "Error setting Glowroot error attributes", ignored);
+    public Handler wrap(final Handler next) {
+        return new Handler.Wrapper(next) {
+            @Override
+            public boolean handle(final Request request, final Response response, final Callback callback) throws Exception {
+                final var method = request.getMethod();
+                final var path = request.getHttpURI() != null ? request.getHttpURI().getPath() : null;
+                final var normalizedPath = normalizePath(path);
+                setGlowrootAttributes(method, path, normalizedPath);
+                try {
+                    return super.handle(request, response, callback);
+                } catch (final Throwable t) {
+                    try {
+                        Glowroot.addTransactionAttribute("error", t.getClass().getName());
+                        Glowroot.addTransactionAttribute("error.message", safeMessage(t.getMessage()));
+                    } catch (final Throwable ignored) {
+                        LOG.log(Level.WARNING, "Error setting Glowroot error attributes", ignored);
+                    }
+                    throw t;
+                }
             }
-            throw t;
-        }
+        };
     }
 
     static String normalizePath(String path) {
@@ -59,7 +59,7 @@ public final class GlowrootNamingHandler extends Handler.Wrapper {
         return message == null ? "" : message;
     }
 
-    private void setGlowrootAttributes(final String method, final String rawPath, final String normalizedPath) {
+    private static void setGlowrootAttributes(final String method, final String rawPath, final String normalizedPath) {
         try {
             Glowroot.setTransactionType("Web");
             Glowroot.setTransactionName(method + " " + normalizedPath);

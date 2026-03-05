@@ -4,12 +4,16 @@ import com.rafex.housedb.kiwi.KiwiApiClient;
 import com.rafex.housedb.services.HouseService;
 import com.rafex.housedb.services.ItemFinderService;
 
-import org.eclipse.jetty.server.Handler;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.Response;
-import org.eclipse.jetty.util.Callback;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 
-public final class HousesRouterHandler extends Handler.Abstract {
+import dev.rafex.ether.http.core.HttpExchange;
+import dev.rafex.ether.http.core.Route;
+import dev.rafex.ether.http.jetty12.NonBlockingResourceHandler;
+import dev.rafex.ether.json.JsonCodec;
+
+public final class HousesRouterHandler extends NonBlockingResourceHandler {
 
     private final CreateHouseHandler createHouseHandler;
     private final UpsertHouseMemberHandler upsertHouseMemberHandler;
@@ -18,8 +22,9 @@ public final class HousesRouterHandler extends Handler.Abstract {
     private final ListHouseMembersHandler listHouseMembersHandler;
     private final CreateHouseLocationHandler createHouseLocationHandler;
 
-    public HousesRouterHandler(final HouseService houseService, final ItemFinderService itemService,
+    public HousesRouterHandler(final JsonCodec jsonCodec, final HouseService houseService, final ItemFinderService itemService,
             final KiwiApiClient kiwiApiClient) {
+        super(jsonCodec);
         createHouseHandler = new CreateHouseHandler(houseService);
         upsertHouseMemberHandler = new UpsertHouseMemberHandler(houseService);
         listHousesHandler = new ListHousesHandler(houseService);
@@ -29,39 +34,60 @@ public final class HousesRouterHandler extends Handler.Abstract {
     }
 
     @Override
-    public boolean handle(final Request request, final Response response, final Callback callback) {
-        final String method = request.getMethod();
-        final String path = request.getHttpURI().getPath();
+    protected String basePath() {
+        return "/houses";
+    }
 
-        if ("POST".equals(method) && "/houses".equals(path)) {
-            return createHouseHandler.handle(request, response, callback);
-        }
-        if ("GET".equals(method) && "/houses".equals(path)) {
-            return listHousesHandler.handle(request, response, callback);
-        }
-        if ("GET".equals(method) && "/houses/ids".equals(path)) {
-            return listHouseIdsHandler.handle(request, response, callback);
-        }
+    @Override
+    protected List<Route> routes() {
+        return List.of(
+                Route.of("/", Set.of("GET", "POST")),
+                Route.of("/ids", Set.of("GET")),
+                Route.of("/{houseId}/members", Set.of("GET", "POST", "PUT")),
+                Route.of("/{houseId}/locations", Set.of("POST")));
+    }
 
-        if (("POST".equals(method) || "PUT".equals(method))
-                && path.startsWith("/houses/")
-                && path.endsWith("/members")) {
-            final var houseId = HouseRequestParsers.extractHouseIdFromMembersPath(path);
-            return upsertHouseMemberHandler.handle(request, response, callback, houseId);
+    @Override
+    public boolean get(final HttpExchange x) {
+        final var path = x.path();
+        if ("/houses".equals(path)) {
+            return listHousesHandler.handle(x);
         }
-        if ("GET".equals(method)
-                && path.startsWith("/houses/")
-                && path.endsWith("/members")) {
-            final var houseId = HouseRequestParsers.extractHouseIdFromMembersPath(path);
-            return listHouseMembersHandler.handle(request, response, callback, houseId);
+        if ("/houses/ids".equals(path)) {
+            return listHouseIdsHandler.handle(x);
         }
-        if ("POST".equals(method)
-                && path.startsWith("/houses/")
-                && path.endsWith("/locations")) {
-            final var houseId = HouseRequestParsers.extractHouseIdFromLocationsPath(path);
-            return createHouseLocationHandler.handle(request, response, callback, houseId);
+        final var houseId = x.pathParam("houseId");
+        if (houseId != null && path.endsWith("/members")) {
+            return listHouseMembersHandler.handle(x, UUID.fromString(houseId));
         }
+        return false;
+    }
 
+    @Override
+    public boolean post(final HttpExchange x) {
+        final var path = x.path();
+        if ("/houses".equals(path)) {
+            return createHouseHandler.handle(x);
+        }
+        final var houseId = x.pathParam("houseId");
+        if (houseId == null) {
+            return false;
+        }
+        if (path.endsWith("/members")) {
+            return upsertHouseMemberHandler.handle(x, UUID.fromString(houseId));
+        }
+        if (path.endsWith("/locations")) {
+            return createHouseLocationHandler.handle(x, UUID.fromString(houseId));
+        }
+        return false;
+    }
+
+    @Override
+    public boolean put(final HttpExchange x) {
+        final var houseId = x.pathParam("houseId");
+        if (houseId != null && x.path().endsWith("/members")) {
+            return upsertHouseMemberHandler.handle(x, UUID.fromString(houseId));
+        }
         return false;
     }
 }
