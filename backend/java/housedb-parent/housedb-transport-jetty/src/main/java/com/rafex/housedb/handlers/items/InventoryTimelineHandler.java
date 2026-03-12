@@ -1,7 +1,6 @@
 package com.rafex.housedb.handlers.items;
 
 import com.rafex.housedb.handlers.ExchangeAdapters;
-import com.rafex.housedb.http.HttpUtil;
 import com.rafex.housedb.services.ItemFinderService;
 
 import java.util.Map;
@@ -27,7 +26,7 @@ final class InventoryTimelineHandler {
             final Integer offset = ItemRequestParsers.parseOptionalInt(query, "offset");
 
             final var events = service.inventoryItemTimeline(inventoryItemId, limit, offset);
-            HttpUtil.ok(x, Map.of("events", events, "count", events.size()));
+            x.json(200, Map.of("events", events, "count", events.size()));
         });
     }
 }

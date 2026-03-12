@@ -3,8 +3,6 @@ package com.rafex.housedb.handlers.items;
 import com.rafex.housedb.dtos.CreateInventoryItemRequest;
 import com.rafex.housedb.handlers.AuthzSupport;
 import com.rafex.housedb.handlers.ExchangeAdapters;
-import com.rafex.housedb.http.HttpUtil;
-import com.rafex.housedb.json.JsonUtil;
 import com.rafex.housedb.kiwi.KiwiApiClient;
 import com.rafex.housedb.services.ItemFinderService;
 
@@ -15,6 +13,7 @@ import java.util.logging.Logger;
 import org.eclipse.jetty.server.Request;
 
 import dev.rafex.ether.http.core.HttpExchange;
+import dev.rafex.ether.json.JsonUtils;
 
 final class InventoryCreateHandler {
 
@@ -31,7 +30,7 @@ final class InventoryCreateHandler {
     boolean handle(final HttpExchange x) {
         return EndpointSupport.execute(LOG, x, () -> {
             final Request request = ExchangeAdapters.request(x);
-            final var body = JsonUtil.MAPPER.readValue(Request.asInputStream(request), CreateInventoryItemRequest.class);
+            final var body = JsonUtils.fromJson(Request.asInputStream(request), CreateInventoryItemRequest.class);
             final var userId = AuthzSupport.requireTokenUser(x);
             final var kiwiLocationId = service.findKiwiLocationIdByHouseLocationId(body.houseLocationLeafId());
             if (kiwiLocationId == null) {
@@ -56,7 +55,7 @@ final class InventoryCreateHandler {
                     body.objectCategory(), null, true);
             final var housedbMetadataJson = body.housedbMetadata() == null
                     ? "{}"
-                    : JsonUtil.MAPPER.writeValueAsString(body.housedbMetadata());
+                    : JsonUtils.toJson(body.housedbMetadata());
 
             final var result = service.createInventoryItem(userId, objectId, body.nickname(),
                     body.serialNumber(), body.conditionStatus(), housedbMetadataJson, body.houseLocationLeafId(), body.movedBy(),
@@ -65,7 +64,7 @@ final class InventoryCreateHandler {
             payload.put("inventoryItemId", result.inventoryItemId());
             payload.put("itemMovementId", result.itemMovementId());
             payload.put("objectId", objectId);
-            HttpUtil.ok(x, payload);
+            x.json(200, payload);
         });
     }
 }

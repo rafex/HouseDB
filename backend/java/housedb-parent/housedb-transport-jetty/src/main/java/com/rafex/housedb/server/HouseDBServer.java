@@ -10,7 +10,6 @@ import com.rafex.housedb.handlers.support.GlowrootMiddleware;
 import com.rafex.housedb.handlers.support.NotFoundResource;
 import com.rafex.housedb.handlers.houses.HousesRouterHandler;
 import com.rafex.housedb.handlers.users.UsersRouterHandler;
-import com.rafex.housedb.json.JsonUtil;
 import com.rafex.housedb.kiwi.KiwiApiClient;
 import com.rafex.housedb.security.JwtService;
 
@@ -23,6 +22,7 @@ import dev.rafex.ether.http.jetty12.JettyRouteRegistry;
 import dev.rafex.ether.http.jetty12.JettyServerConfig;
 import dev.rafex.ether.http.jetty12.JettyServerFactory;
 import dev.rafex.ether.http.jetty12.TokenVerificationResult;
+import dev.rafex.ether.json.JsonCodecBuilder;
 
 public final class HouseDBServer {
 
@@ -32,25 +32,26 @@ public final class HouseDBServer {
     }
 
     public static void start(final HouseDbContainer container) throws Exception {
-        final var jwt = new JwtService(JsonUtil.MAPPER, System.getenv().getOrDefault("JWT_ISS", "com.rafex.housedb"),
+        final var jsonCodec = JsonCodecBuilder.create().build();
+        final var jwt = new JwtService(jsonCodec.mapper(), System.getenv().getOrDefault("JWT_ISS", "com.rafex.housedb"),
                 System.getenv().getOrDefault("JWT_AUD", "housedb-backend"),
                 System.getenv().getOrDefault("JWT_SECRET", "CHANGE_ME_NOW_32+chars_secret"));
 
-        final var kiwiApiClient = new KiwiApiClient();
+        final var kiwiApiClient = new KiwiApiClient(jsonCodec);
         kiwiApiClient.bootstrapAppClientFromEnv();
 
-        final var helloHandler = new HelloHandler(JsonUtil.CODEC);
-        final var authRoutes = new AuthRouterHandler(JsonUtil.CODEC, jwt, container.authService(),
+        final var helloHandler = new HelloHandler(jsonCodec);
+        final var authRoutes = new AuthRouterHandler(jsonCodec, jwt, container.authService(),
                 container.appClientAuthService());
-        final var itemRoutes = new ItemsRouterHandler(JsonUtil.CODEC, container.itemFinderService(), kiwiApiClient);
-        final var itemAliasRoutes = new ItemAliasRouterHandler(JsonUtil.CODEC, kiwiApiClient, container.itemFinderService());
-        final var houseRoutes = new HousesRouterHandler(JsonUtil.CODEC, container.houseService(), container.itemFinderService(),
+        final var itemRoutes = new ItemsRouterHandler(jsonCodec, container.itemFinderService(), kiwiApiClient);
+        final var itemAliasRoutes = new ItemAliasRouterHandler(jsonCodec, kiwiApiClient, container.itemFinderService());
+        final var houseRoutes = new HousesRouterHandler(jsonCodec, container.houseService(), container.itemFinderService(),
                 kiwiApiClient);
-        final var userRoutes = new UsersRouterHandler(JsonUtil.CODEC, container.userRepository(),
+        final var userRoutes = new UsersRouterHandler(jsonCodec, container.userRepository(),
                 container.passwordHasherPBKDF2());
 
         final var routeRegistry = new JettyRouteRegistry();
-        routeRegistry.add("/health", new HealthHandler(JsonUtil.CODEC));
+        routeRegistry.add("/health", new HealthHandler(jsonCodec));
         routeRegistry.add("/hello", helloHandler);
         routeRegistry.add("/hello/name", helloHandler);
         routeRegistry.add("/auth/*", authRoutes);
@@ -61,7 +62,7 @@ public final class HouseDBServer {
         routeRegistry.add("/houses/*", houseRoutes);
         routeRegistry.add("/users", userRoutes);
         routeRegistry.add("/users/*", userRoutes);
-        routeRegistry.add("/*", new NotFoundResource(JsonUtil.CODEC));
+        routeRegistry.add("/*", new NotFoundResource(jsonCodec));
 
         final var tokenVerifier = (dev.rafex.ether.http.jetty12.TokenVerifier) (token, epochSeconds) -> {
             final var result = jwt.verify(token, epochSeconds);
@@ -89,7 +90,7 @@ public final class HouseDBServer {
         final List<JettyMiddleware> middlewares = List.of(new GlowrootMiddleware());
 
         final var config = JettyServerConfig.fromEnv();
-        final var runner = JettyServerFactory.create(config, routeRegistry, JsonUtil.CODEC, tokenVerifier,
+        final var runner = JettyServerFactory.create(config, routeRegistry, jsonCodec, tokenVerifier,
                 authPolicies, middlewares);
 
         LOG.info("Starting HouseDB backend on port " + config.port());

@@ -1,8 +1,8 @@
 package com.rafex.housedb.handlers.users;
 
-import com.rafex.housedb.http.HttpUtil;
-
 import java.sql.SQLException;
+import java.time.Instant;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -19,18 +19,21 @@ final class UsersEndpointSupport {
             action.close();
             return true;
         } catch (final SecurityException e) {
-            HttpUtil.forbidden(exchange, e.getMessage());
+            exchange.json(403, Map.of("error", "forbidden", "code", e.getMessage(), "timestamp", Instant.now().toString()));
             return true;
         } catch (final IllegalArgumentException e) {
-            HttpUtil.badRequest(exchange, e.getMessage());
+            exchange.json(400,
+                    Map.of("error", "bad_request", "message", e.getMessage(), "timestamp", Instant.now().toString()));
             return true;
         } catch (final SQLException e) {
             logger.log(Level.SEVERE, "SQL error handling request", e);
-            HttpUtil.internalServerError(exchange, "database error");
+            exchange.json(500, Map.of("error", "internal_server_error", "message", "database error",
+                    "timestamp", Instant.now().toString()));
             return true;
         } catch (final Exception e) {
             logger.log(Level.SEVERE, "Unhandled error", e);
-            HttpUtil.internalServerError(exchange, "internal error");
+            exchange.json(500, Map.of("error", "internal_server_error", "message", "internal error",
+                    "timestamp", Instant.now().toString()));
             return true;
         }
     }

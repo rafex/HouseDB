@@ -1,8 +1,7 @@
 package com.rafex.housedb.handlers.support;
 
-import com.rafex.housedb.http.HttpUtil;
-
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import dev.rafex.ether.http.core.HttpExchange;
@@ -30,37 +29,37 @@ public final class NotFoundResource extends NonBlockingResourceHandler {
 
     @Override
     public boolean get(final HttpExchange x) {
-        HttpUtil.notFound(x, x.path());
+        x.json(404, Map.of("error", "not_found", "path", x.path()));
         return true;
     }
 
     @Override
     public boolean post(final HttpExchange x) {
-        HttpUtil.notFound(x, x.path());
+        x.json(404, Map.of("error", "not_found", "path", x.path()));
         return true;
     }
 
     @Override
     public boolean put(final HttpExchange x) {
-        HttpUtil.notFound(x, x.path());
+        x.json(404, Map.of("error", "not_found", "path", x.path()));
         return true;
     }
 
     @Override
     public boolean patch(final HttpExchange x) {
-        HttpUtil.notFound(x, x.path());
+        x.json(404, Map.of("error", "not_found", "path", x.path()));
         return true;
     }
 
     @Override
     public boolean delete(final HttpExchange x) {
-        HttpUtil.notFound(x, x.path());
+        x.json(404, Map.of("error", "not_found", "path", x.path()));
         return true;
     }
 
     @Override
     public boolean options(final HttpExchange x) {
-        HttpUtil.notFound(x, x.path());
+        x.json(404, Map.of("error", "not_found", "path", x.path()));
         return true;
     }
 }

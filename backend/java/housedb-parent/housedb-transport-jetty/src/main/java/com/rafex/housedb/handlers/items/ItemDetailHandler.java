@@ -1,10 +1,10 @@
 package com.rafex.housedb.handlers.items;
 
-import com.rafex.housedb.http.HttpUtil;
 import com.rafex.housedb.kiwi.KiwiApiClient;
 import com.rafex.housedb.services.ItemFinderService;
 
 import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -27,7 +27,7 @@ final class ItemDetailHandler {
         try {
             final var inventoryItem = itemService.getInventoryItemDetail(itemId);
             if (inventoryItem == null) {
-                HttpUtil.notFound(x, x.path());
+                x.json(404, Map.of("error", "not_found", "path", x.path()));
                 return true;
             }
 
@@ -50,22 +50,22 @@ final class ItemDetailHandler {
                 }
             }
 
-            HttpUtil.ok(x, payload);
+            x.json(200, payload);
             return true;
         } catch (final IllegalArgumentException e) {
-            HttpUtil.badRequest(x, e.getMessage());
+            x.json(400, Map.of("error", "bad_request", "message", e.getMessage()));
             return true;
         } catch (final KiwiApiClient.KiwiApiException e) {
             if (e.statusCode() == 404) {
-                HttpUtil.notFound(x, x.path());
+                x.json(404, Map.of("error", "not_found", "path", x.path()));
                 return true;
             }
             LOG.log(Level.SEVERE, "Kiwi API error", e);
-            HttpUtil.internalServerError(x, "kiwi api error");
+            x.json(500, Map.of("error", "internal_server_error", "message", "kiwi api error"));
             return true;
         } catch (final Exception e) {
             LOG.log(Level.SEVERE, "Unhandled error", e);
-            HttpUtil.internalServerError(x, "internal error");
+            x.json(500, Map.of("error", "internal_server_error", "message", "internal error"));
             return true;
         }
     }

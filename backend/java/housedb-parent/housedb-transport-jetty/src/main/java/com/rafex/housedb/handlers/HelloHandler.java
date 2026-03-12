@@ -1,7 +1,5 @@
 package com.rafex.housedb.handlers;
 
-import com.rafex.housedb.http.HttpUtil;
-import com.rafex.housedb.json.JsonUtil;
 import com.rafex.housedb.tools.BuildVersion;
 
 import java.nio.charset.StandardCharsets;
@@ -18,6 +16,7 @@ import dev.rafex.ether.http.core.HttpExchange;
 import dev.rafex.ether.http.core.Route;
 import dev.rafex.ether.http.jetty12.NonBlockingResourceHandler;
 import dev.rafex.ether.json.JsonCodec;
+import dev.rafex.ether.json.JsonUtils;
 
 public final class HelloHandler extends NonBlockingResourceHandler {
 
@@ -40,12 +39,12 @@ public final class HelloHandler extends NonBlockingResourceHandler {
     @Override
     public boolean get(final HttpExchange x) {
         if ("/hello".equals(x.path())) {
-            HttpUtil.ok(x, responseBody(null));
+            x.json(200, responseBody(null));
             return true;
         }
         if ("/hello/name".equals(x.path())) {
             final var name = normalize(x.queryFirst("name"));
-            HttpUtil.ok(x, responseBody(name));
+            x.json(200, responseBody(name));
             return true;
         }
         return false;
@@ -62,25 +61,25 @@ public final class HelloHandler extends NonBlockingResourceHandler {
         try {
             body = Content.Source.asString(request, StandardCharsets.UTF_8);
         } catch (final Exception ignored) {
-            HttpUtil.ok(x, responseBody(queryName));
+            x.json(200, responseBody(queryName));
             return true;
         }
 
         if (body == null || body.isBlank()) {
-            HttpUtil.ok(x, responseBody(queryName));
+            x.json(200, responseBody(queryName));
             return true;
         }
 
         try {
-            final var json = JsonUtil.MAPPER.readTree(body);
+            final var json = JsonUtils.parseTree(body);
             final var node = json != null ? json.get("name") : null;
             final var bodyName = node != null && node.isTextual() ? normalize(node.asText()) : null;
-            HttpUtil.ok(x, responseBody(bodyName != null ? bodyName : queryName));
+            x.json(200, responseBody(bodyName != null ? bodyName : queryName));
             return true;
         } catch (final Exception ignored) {
             final var form = parseQuery(body);
             final var formName = normalize(form.getValue("name"));
-            HttpUtil.ok(x, responseBody(formName != null ? formName : queryName));
+            x.json(200, responseBody(formName != null ? formName : queryName));
             return true;
         }
     }

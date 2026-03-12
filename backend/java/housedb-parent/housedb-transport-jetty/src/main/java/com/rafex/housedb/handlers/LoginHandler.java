@@ -1,11 +1,10 @@
 package com.rafex.housedb.handlers;
 
-import com.rafex.housedb.http.HttpUtil;
-import com.rafex.housedb.json.JsonUtil;
 import com.rafex.housedb.security.JwtService;
 import com.rafex.housedb.services.AuthService;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
@@ -17,6 +16,7 @@ import org.eclipse.jetty.server.Request;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import dev.rafex.ether.http.core.HttpExchange;
+import dev.rafex.ether.json.JsonUtils;
 
 public final class LoginHandler {
 
@@ -38,7 +38,7 @@ public final class LoginHandler {
         final Request request = ExchangeAdapters.request(x);
 
         if (!"POST".equalsIgnoreCase(request.getMethod())) {
-            HttpUtil.json(x, HttpStatus.METHOD_NOT_ALLOWED_405, Map.of("error", "method_not_allowed"));
+            x.json(HttpStatus.METHOD_NOT_ALLOWED_405, Map.of("error", "method_not_allowed"));
             return true;
         }
 
@@ -46,7 +46,8 @@ public final class LoginHandler {
         if (authz != null && authz.regionMatches(true, 0, "Basic ", 0, "Basic ".length())) {
             final var creds = decodeBasic(authz.substring("Basic ".length()).trim());
             if (creds == null) {
-                HttpUtil.unauthorized(x, "bad_basic_auth");
+                x.json(HttpStatus.UNAUTHORIZED_401,
+                        Map.of("error", "unauthorized", "code", "bad_basic_auth", "timestamp", Instant.now().toString()));
                 return true;
             }
             return authenticateAndMint(x, creds.user(), creds.pass());
@@ -56,20 +57,23 @@ public final class LoginHandler {
         try {
             body = Content.Source.asString(request, StandardCharsets.UTF_8);
         } catch (final Exception e) {
-            HttpUtil.badRequest(x, "cannot_read_body");
+            x.json(HttpStatus.BAD_REQUEST_400,
+                    Map.of("error", "bad_request", "message", "cannot_read_body", "timestamp", Instant.now().toString()));
             return true;
         }
 
         if (body == null || body.isBlank()) {
-            HttpUtil.unauthorized(x, "missing_credentials");
+            x.json(HttpStatus.UNAUTHORIZED_401,
+                    Map.of("error", "unauthorized", "code", "missing_credentials", "timestamp", Instant.now().toString()));
             return true;
         }
 
         final JsonNode json;
         try {
-            json = JsonUtil.MAPPER.readTree(body);
+            json = JsonUtils.parseTree(body);
         } catch (final Exception e) {
-            HttpUtil.badRequest(x, "invalid_json");
+            x.json(HttpStatus.BAD_REQUEST_400,
+                    Map.of("error", "bad_request", "message", "invalid_json", "timestamp", Instant.now().toString()));
             return true;
         }
 
@@ -77,7 +81,8 @@ public final class LoginHandler {
         final var pass = text(json, "password");
 
         if (user == null || pass == null) {
-            HttpUtil.unauthorized(x, "missing_credentials");
+            x.json(HttpStatus.UNAUTHORIZED_401,
+                    Map.of("error", "unauthorized", "code", "missing_credentials", "timestamp", Instant.now().toString()));
             return true;
         }
 
@@ -93,12 +98,13 @@ public final class LoginHandler {
             final var code = result.code() != null ? result.code() : "bad_credentials";
 
             if ("user_disabled".equals(code)) {
-                HttpUtil.json(x, HttpStatus.FORBIDDEN_403,
+                x.json(HttpStatus.FORBIDDEN_403,
                         Map.of("error", "forbidden", "code", "user_disabled"));
             } else if ("bad_credentials".equals(code)) {
-                HttpUtil.unauthorized(x, "bad_credentials");
+                x.json(HttpStatus.UNAUTHORIZED_401,
+                        Map.of("error", "unauthorized", "code", "bad_credentials", "timestamp", Instant.now().toString()));
             } else {
-                HttpUtil.json(x, HttpStatus.UNAUTHORIZED_401,
+                x.json(HttpStatus.UNAUTHORIZED_401,
                         Map.of("error", "unauthorized", "code", code));
             }
             return true;
@@ -106,7 +112,7 @@ public final class LoginHandler {
 
         final var token = jwt.mint(result.userId().toString(), result.roles(), ttlSeconds);
 
-        HttpUtil.ok(x, Map.of("token_type", "Bearer", "access_token", token, "expires_in", ttlSeconds));
+        x.json(200, Map.of("token_type", "Bearer", "access_token", token, "expires_in", ttlSeconds));
         return true;
     }
 

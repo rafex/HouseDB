@@ -9,12 +9,15 @@ import java.time.Instant;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.logging.Logger;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.rafex.housedb.json.JsonUtil;
+
+import dev.rafex.ether.json.JacksonJsonCodec;
+import dev.rafex.ether.json.JsonCodecBuilder;
 
 public final class KiwiApiClient {
 
@@ -38,17 +41,30 @@ public final class KiwiApiClient {
 
     private final HttpClient httpClient;
     private final String baseUrl;
+    private final JacksonJsonCodec jsonCodec;
     private volatile String cachedBearerToken;
     private volatile Instant cachedBearerTokenExpiresAt;
 
     public KiwiApiClient() {
         this(HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build(),
-                System.getenv().getOrDefault("KIWI_API_BASE_URL", "https://kiwi.v1.rafex.cloud"));
+                System.getenv().getOrDefault("KIWI_API_BASE_URL", "https://kiwi.v1.rafex.cloud"),
+                JsonCodecBuilder.create().build());
+    }
+
+    public KiwiApiClient(final JacksonJsonCodec jsonCodec) {
+        this(HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build(),
+                System.getenv().getOrDefault("KIWI_API_BASE_URL", "https://kiwi.v1.rafex.cloud"),
+                jsonCodec);
     }
 
     KiwiApiClient(final HttpClient httpClient, final String baseUrl) {
+        this(httpClient, baseUrl, JsonCodecBuilder.create().build());
+    }
+
+    KiwiApiClient(final HttpClient httpClient, final String baseUrl, final JacksonJsonCodec jsonCodec) {
         this.httpClient = Objects.requireNonNull(httpClient, "httpClient");
         this.baseUrl = Objects.requireNonNull(baseUrl, "baseUrl");
+        this.jsonCodec = Objects.requireNonNull(jsonCodec, "jsonCodec");
     }
 
     public UUID createLocation(final String name, final UUID parentLocationId)
@@ -59,11 +75,11 @@ public final class KiwiApiClient {
         final var token = resolveBearerToken();
 
         final var endpoint = baseUrl.endsWith("/") ? baseUrl + "locations" : baseUrl + "/locations";
-        final var json = JsonUtil.MAPPER.createObjectNode().put("name", name);
+        final var json = jsonCodec.mapper().createObjectNode().put("name", name);
         if (parentLocationId != null) {
             json.put("parentLocationId", parentLocationId.toString());
         }
-        final var body = JsonUtil.MAPPER.writeValueAsString(json);
+        final var body = jsonCodec.toJson(json);
 
         final var request = HttpRequest.newBuilder().uri(URI.create(endpoint)).timeout(Duration.ofSeconds(10))
                 .header("Authorization", "Bearer " + token).header("Content-Type", "application/json")
@@ -75,7 +91,7 @@ public final class KiwiApiClient {
                     "Kiwi API error creating location: HTTP " + response.statusCode());
         }
 
-        final var responseJson = JsonUtil.MAPPER.readTree(response.body());
+        final var responseJson = jsonCodec.readTree(response.body());
         final var locationId = responseJson.get("location_id");
         if (locationId == null || locationId.asText().isBlank()) {
             throw new IllegalStateException("Kiwi API response missing location_id");
@@ -100,7 +116,7 @@ public final class KiwiApiClient {
             throw new KiwiApiException(response.statusCode(),
                     "Kiwi API error fetching object: HTTP " + response.statusCode());
         }
-        return JsonUtil.MAPPER.readTree(response.body());
+        return jsonCodec.readTree(response.body());
     }
 
     public UUID createObject(final String name, final String description, final UUID locationId, final String type,
@@ -114,7 +130,7 @@ public final class KiwiApiClient {
         final var token = resolveBearerToken();
 
         final var endpoint = baseUrl.endsWith("/") ? baseUrl + "objects" : baseUrl + "/objects";
-        final var json = JsonUtil.MAPPER.createObjectNode();
+        final var json = jsonCodec.mapper().createObjectNode();
         json.put("name", name);
         if (description != null && !description.isBlank()) {
             json.put("description", description);
@@ -139,10 +155,10 @@ public final class KiwiApiClient {
         }
 
         if (metadata != null) {
-            json.set("metadata", JsonUtil.MAPPER.valueToTree(metadata));
+            json.set("metadata", jsonCodec.valueToTree(metadata));
         }
 
-        final var body = JsonUtil.MAPPER.writeValueAsString(json);
+        final var body = jsonCodec.toJson(json);
         final var request = HttpRequest.newBuilder().uri(URI.create(endpoint)).timeout(Duration.ofSeconds(10))
                 .header("Authorization", "Bearer " + token).header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(body)).build();
@@ -153,7 +169,7 @@ public final class KiwiApiClient {
                     "Kiwi API error creating object: HTTP " + response.statusCode());
         }
 
-        final var responseJson = JsonUtil.MAPPER.readTree(response.body());
+        final var responseJson = jsonCodec.readTree(response.body());
         final var objectIdNode = responseJson.get("object_id");
         if (objectIdNode == null || objectIdNode.asText().isBlank()) {
             throw new IllegalStateException("Kiwi API response missing object_id");
@@ -214,8 +230,8 @@ public final class KiwiApiClient {
 
     private String loginAdmin(final String username, final String password) throws IOException, InterruptedException {
         final var endpoint = baseUrl.endsWith("/") ? baseUrl + "auth/login" : baseUrl + "/auth/login";
-        final var body = JsonUtil.MAPPER.writeValueAsString(
-                JsonUtil.MAPPER.createObjectNode().put("username", username).put("password", password));
+        final var body = jsonCodec.toJson(
+                jsonCodec.mapper().createObjectNode().put("username", username).put("password", password));
 
         final var request = HttpRequest.newBuilder().uri(URI.create(endpoint)).timeout(Duration.ofSeconds(10))
                 .header("Content-Type", "application/json")
@@ -232,8 +248,8 @@ public final class KiwiApiClient {
     private TokenData requestClientCredentialsToken(final String clientId, final String clientSecret)
             throws IOException, InterruptedException {
         final var endpoint = baseUrl.endsWith("/") ? baseUrl + "auth/token" : baseUrl + "/auth/token";
-        final var body = JsonUtil.MAPPER.writeValueAsString(
-                JsonUtil.MAPPER.createObjectNode()
+        final var body = jsonCodec.toJson(
+                jsonCodec.mapper().createObjectNode()
                         .put("client_id", clientId)
                         .put("client_secret", clientSecret)
                         .put("grant_type", "client_credentials"));
@@ -247,7 +263,7 @@ public final class KiwiApiClient {
             throw new KiwiApiException(response.statusCode(),
                     "Kiwi API client token failed: HTTP " + response.statusCode());
         }
-        final var json = JsonUtil.MAPPER.readTree(response.body());
+        final var json = jsonCodec.readTree(response.body());
         final var token = extractAccessToken(json, "Kiwi API client token");
         final var expiresIn = json.path("expires_in").asLong(300);
         return new TokenData(token, Instant.now().plusSeconds(Math.max(60, expiresIn)));
@@ -256,7 +272,7 @@ public final class KiwiApiClient {
     private void createAppClient(final String adminToken, final String clientId, final String clientSecret,
             final String name, final String csvRoles) throws IOException, InterruptedException {
         final var endpoint = baseUrl.endsWith("/") ? baseUrl + "admin/app-clients" : baseUrl + "/admin/app-clients";
-        final var json = JsonUtil.MAPPER.createObjectNode();
+        final var json = jsonCodec.mapper().createObjectNode();
         json.put("client_id", clientId);
         json.put("client_secret", clientSecret);
         json.put("name", name);
@@ -271,7 +287,7 @@ public final class KiwiApiClient {
         final var request = HttpRequest.newBuilder().uri(URI.create(endpoint)).timeout(Duration.ofSeconds(10))
                 .header("Authorization", "Bearer " + adminToken)
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(JsonUtil.MAPPER.writeValueAsString(json)))
+                .POST(HttpRequest.BodyPublishers.ofString(jsonCodec.toJson(json)))
                 .build();
 
         final var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
@@ -287,8 +303,8 @@ public final class KiwiApiClient {
                 "Kiwi API create app client failed: HTTP " + response.statusCode());
     }
 
-    private static String extractAccessToken(final String body, final String context) throws IOException {
-        return extractAccessToken(JsonUtil.MAPPER.readTree(body), context);
+    private String extractAccessToken(final String body, final String context) throws IOException {
+        return extractAccessToken(jsonCodec.readTree(body), context);
     }
 
     private static String extractAccessToken(final JsonNode json, final String context) {

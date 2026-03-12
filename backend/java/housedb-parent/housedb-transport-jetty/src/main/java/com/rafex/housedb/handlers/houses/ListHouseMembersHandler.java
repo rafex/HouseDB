@@ -1,7 +1,6 @@
 package com.rafex.housedb.handlers.houses;
 
 import com.rafex.housedb.handlers.ExchangeAdapters;
-import com.rafex.housedb.http.HttpUtil;
 import com.rafex.housedb.services.HouseService;
 
 import java.util.Map;
@@ -28,7 +27,7 @@ final class ListHouseMembersHandler {
             final var offset = HouseRequestParsers.parseOptionalInt(query, "offset");
 
             final var members = service.listHouseMembers(houseId, includeDisabled, limit, offset);
-            HttpUtil.ok(x, Map.of("members", members, "count", members.size()));
+            x.json(200, Map.of("members", members, "count", members.size()));
         });
     }
 }

@@ -3,8 +3,6 @@ package com.rafex.housedb.handlers.houses;
 import com.rafex.housedb.dtos.CreateHouseRequest;
 import com.rafex.housedb.handlers.AuthzSupport;
 import com.rafex.housedb.handlers.ExchangeAdapters;
-import com.rafex.housedb.http.HttpUtil;
-import com.rafex.housedb.json.JsonUtil;
 import com.rafex.housedb.services.HouseService;
 
 import java.util.logging.Logger;
@@ -12,6 +10,7 @@ import java.util.logging.Logger;
 import org.eclipse.jetty.server.Request;
 
 import dev.rafex.ether.http.core.HttpExchange;
+import dev.rafex.ether.json.JsonUtils;
 
 final class CreateHouseHandler {
 
@@ -26,12 +25,12 @@ final class CreateHouseHandler {
     boolean handle(final HttpExchange x) {
         return HouseEndpointSupport.execute(LOG, x, () -> {
             final Request request = ExchangeAdapters.request(x);
-            final var body = JsonUtil.MAPPER.readValue(Request.asInputStream(request), CreateHouseRequest.class);
+            final var body = JsonUtils.fromJson(Request.asInputStream(request), CreateHouseRequest.class);
             final var ownerUserId = AuthzSupport.requireTokenUser(x);
             final var result = service.createHouse(ownerUserId, body.name(), body.description(), body.street(),
                     body.numberExt(), body.numberInt(), body.neighborhood(), body.city(), body.state(),
                     body.zipCode(), body.country(), body.latitude(), body.longitude(), body.urlMap());
-            HttpUtil.ok(x, result);
+            x.json(200, result);
         });
     }
 }

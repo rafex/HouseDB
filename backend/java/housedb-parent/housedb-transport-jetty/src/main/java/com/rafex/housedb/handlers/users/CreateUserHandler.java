@@ -3,8 +3,6 @@ package com.rafex.housedb.handlers.users;
 import com.rafex.housedb.dtos.CreateUserRequest;
 import com.rafex.housedb.handlers.AuthzSupport;
 import com.rafex.housedb.handlers.ExchangeAdapters;
-import com.rafex.housedb.http.HttpUtil;
-import com.rafex.housedb.json.JsonUtil;
 import com.rafex.housedb.repository.UserRepository;
 import com.rafex.housedb.security.PasswordHasherPBKDF2;
 
@@ -16,6 +14,7 @@ import java.util.logging.Logger;
 import org.eclipse.jetty.server.Request;
 
 import dev.rafex.ether.http.core.HttpExchange;
+import dev.rafex.ether.json.JsonUtils;
 
 final class CreateUserHandler {
 
@@ -38,7 +37,7 @@ final class CreateUserHandler {
             AuthzSupport.requireAppOrAdmin(x);
 
             final Request request = ExchangeAdapters.request(x);
-            final var body = JsonUtil.MAPPER.readValue(Request.asInputStream(request), CreateUserRequest.class);
+            final var body = JsonUtils.fromJson(Request.asInputStream(request), CreateUserRequest.class);
             final var username = requireText(body.username(), "username");
             final var password = requireText(body.password(), "password");
             final var userId = body.userId() != null ? body.userId() : UUID.randomUUID();
@@ -53,7 +52,7 @@ final class CreateUserHandler {
             } finally {
                 Arrays.fill(passChars, '\0');
             }
-            HttpUtil.ok(x, Map.of("userId", userId, "username", username));
+            x.json(200, Map.of("userId", userId, "username", username));
         });
     }
 

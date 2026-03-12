@@ -1,6 +1,5 @@
 package com.rafex.housedb.handlers;
 
-import com.rafex.housedb.http.HttpUtil;
 
 import java.time.Instant;
 import java.util.List;
@@ -30,7 +29,7 @@ public final class HealthHandler extends NonBlockingResourceHandler {
 
     @Override
     public boolean get(final HttpExchange x) {
-        HttpUtil.ok(x, Map.of("status", "UP", "timestamp", Instant.now().toString()));
+        x.json(200, Map.of("status", "UP", "timestamp", Instant.now().toString()));
         return true;
     }
 }

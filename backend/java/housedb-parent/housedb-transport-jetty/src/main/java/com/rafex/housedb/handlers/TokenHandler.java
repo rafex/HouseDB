@@ -1,11 +1,10 @@
 package com.rafex.housedb.handlers;
 
-import com.rafex.housedb.http.HttpUtil;
-import com.rafex.housedb.json.JsonUtil;
 import com.rafex.housedb.security.JwtService;
 import com.rafex.housedb.services.AppClientAuthService;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
@@ -19,6 +18,7 @@ import org.eclipse.jetty.util.UrlEncoded;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import dev.rafex.ether.http.core.HttpExchange;
+import dev.rafex.ether.json.JsonUtils;
 
 public final class TokenHandler {
 
@@ -39,7 +39,7 @@ public final class TokenHandler {
     public boolean handle(final HttpExchange x) throws Exception {
         final Request request = ExchangeAdapters.request(x);
         if (!"POST".equalsIgnoreCase(request.getMethod())) {
-            HttpUtil.json(x, HttpStatus.METHOD_NOT_ALLOWED_405, Map.of("error", "method_not_allowed"));
+            x.json(HttpStatus.METHOD_NOT_ALLOWED_405, Map.of("error", "method_not_allowed"));
             return true;
         }
 
@@ -47,7 +47,8 @@ public final class TokenHandler {
         if (authz != null && authz.regionMatches(true, 0, "Basic ", 0, "Basic ".length())) {
             final var creds = decodeBasic(authz.substring("Basic ".length()).trim());
             if (creds == null) {
-                HttpUtil.unauthorized(x, "invalid_client");
+                x.json(HttpStatus.UNAUTHORIZED_401,
+                        Map.of("error", "unauthorized", "code", "invalid_client", "timestamp", Instant.now().toString()));
                 return true;
             }
             return authenticateAndMint(x, creds.clientId(), creds.clientSecret(), "client_credentials");
@@ -57,12 +58,14 @@ public final class TokenHandler {
         try {
             body = Content.Source.asString(request, StandardCharsets.UTF_8);
         } catch (final Exception e) {
-            HttpUtil.badRequest(x, "cannot_read_body");
+            x.json(HttpStatus.BAD_REQUEST_400,
+                    Map.of("error", "bad_request", "message", "cannot_read_body", "timestamp", Instant.now().toString()));
             return true;
         }
 
         if (body == null || body.isBlank()) {
-            HttpUtil.badRequest(x, "missing_body");
+            x.json(HttpStatus.BAD_REQUEST_400,
+                    Map.of("error", "bad_request", "message", "missing_body", "timestamp", Instant.now().toString()));
             return true;
         }
 
@@ -70,9 +73,10 @@ public final class TokenHandler {
         if (contentType != null && contentType.toLowerCase().contains("application/json")) {
             final JsonNode json;
             try {
-                json = JsonUtil.MAPPER.readTree(body);
+                json = JsonUtils.parseTree(body);
             } catch (final Exception e) {
-                HttpUtil.badRequest(x, "invalid_json");
+                x.json(HttpStatus.BAD_REQUEST_400,
+                        Map.of("error", "bad_request", "message", "invalid_json", "timestamp", Instant.now().toString()));
                 return true;
             }
 
@@ -89,12 +93,14 @@ public final class TokenHandler {
     private boolean authenticateAndMint(final HttpExchange x, final String clientId,
             final String clientSecret, final String grantType) throws Exception {
         if (grantType == null || !"client_credentials".equals(grantType)) {
-            HttpUtil.badRequest(x, "unsupported_grant_type");
+            x.json(HttpStatus.BAD_REQUEST_400,
+                    Map.of("error", "bad_request", "message", "unsupported_grant_type", "timestamp", Instant.now().toString()));
             return true;
         }
 
         if (clientId == null || clientSecret == null) {
-            HttpUtil.unauthorized(x, "invalid_client");
+            x.json(HttpStatus.UNAUTHORIZED_401,
+                    Map.of("error", "unauthorized", "code", "invalid_client", "timestamp", Instant.now().toString()));
             return true;
         }
 
@@ -102,19 +108,20 @@ public final class TokenHandler {
         if (!result.ok()) {
             final var code = result.code() != null ? result.code() : "invalid_client";
             if ("client_disabled".equals(code)) {
-                HttpUtil.forbidden(x, "client_disabled");
+                x.json(HttpStatus.FORBIDDEN_403,
+                        Map.of("error", "forbidden", "code", "client_disabled", "timestamp", Instant.now().toString()));
             } else if ("invalid_client".equals(code)) {
-                HttpUtil.unauthorized(x, "invalid_client");
+                x.json(HttpStatus.UNAUTHORIZED_401,
+                        Map.of("error", "unauthorized", "code", "invalid_client", "timestamp", Instant.now().toString()));
             } else {
-                HttpUtil.json(x, HttpStatus.UNAUTHORIZED_401,
+                x.json(HttpStatus.UNAUTHORIZED_401,
                         Map.of("error", "unauthorized", "code", code));
             }
             return true;
         }
 
         final var token = jwt.mintApp("app:" + result.clientId(), result.clientId(), result.roles(), ttlSeconds);
-        HttpUtil.ok(x,
-                Map.of("token_type", "Bearer", "access_token", token, "expires_in", ttlSeconds, "grant_type",
+        x.json(200, Map.of("token_type", "Bearer", "access_token", token, "expires_in", ttlSeconds, "grant_type",
                         "client_credentials"));
         return true;
     }

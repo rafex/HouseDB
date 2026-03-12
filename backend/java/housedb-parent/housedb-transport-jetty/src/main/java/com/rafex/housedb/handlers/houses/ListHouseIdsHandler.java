@@ -2,7 +2,6 @@ package com.rafex.housedb.handlers.houses;
 
 import com.rafex.housedb.handlers.AuthzSupport;
 import com.rafex.housedb.handlers.ExchangeAdapters;
-import com.rafex.housedb.http.HttpUtil;
 import com.rafex.housedb.services.HouseService;
 
 import java.util.Map;
@@ -31,7 +30,7 @@ final class ListHouseIdsHandler {
             final var houses = service.listUserHouses(userId, includeDisabled, limit, offset);
             final var ids = houses.stream().map(h -> h.houseId()).toList();
 
-            HttpUtil.ok(x, Map.of("houseIds", ids, "count", ids.size()));
+            x.json(200, Map.of("houseIds", ids, "count", ids.size()));
         });
     }
 }

@@ -2,7 +2,6 @@ package com.rafex.housedb.handlers.items;
 
 import com.rafex.housedb.handlers.AuthzSupport;
 import com.rafex.housedb.handlers.ExchangeAdapters;
-import com.rafex.housedb.http.HttpUtil;
 import com.rafex.housedb.services.ItemFinderService;
 
 import java.util.Map;
@@ -27,7 +26,7 @@ final class InventoryListHandler {
             final Integer limit = ItemRequestParsers.parseOptionalInt(query, "limit");
             final Integer offset = ItemRequestParsers.parseOptionalInt(query, "offset");
             final var items = service.listOwnedInventoryItems(userId, limit, offset);
-            HttpUtil.ok(x, Map.of("items", items, "count", items.size()));
+            x.json(200, Map.of("items", items, "count", items.size()));
         });
     }
 }
