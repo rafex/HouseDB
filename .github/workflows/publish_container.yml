@@ -3,8 +3,6 @@ name: Build and Publish Containers
 
 on:
   push:
-    branches:
-      - main
     tags:
       - 'v*.*'
   workflow_dispatch:
@@ -32,8 +30,8 @@ jobs:
       - name: Check for backend changes
         id: check
         run: |
-          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] || [ "${GITHUB_REF_TYPE}" = "tag" ] || [ "${GITHUB_REF_NAME}" = "main" ]; then
-            echo "Detected manual run, tag push or main push; allowing build."
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] || [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            echo "Detected manual run or tag push; allowing build."
             echo "changed=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -58,8 +56,8 @@ jobs:
       - name: Check for frontend changes
         id: check
         run: |
-          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] || [ "${GITHUB_REF_TYPE}" = "tag" ] || [ "${GITHUB_REF_NAME}" = "main" ]; then
-            echo "Detected manual run, tag push or main push; allowing build."
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] || [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            echo "Detected manual run or tag push; allowing build."
             echo "changed=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -84,15 +82,13 @@ jobs:
       - name: Resolve and validate image tag
         id: image_tag
         run: |
-          if [ "${GITHUB_REF_NAME}" = "main" ]; then
-          IMAGE_TAG="latest"
-          elif [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
             IMAGE_TAG="${{ github.event.inputs.version_tag }}"
           else
             IMAGE_TAG="${GITHUB_REF_NAME}"
           fi
 
-          if [ "$IMAGE_TAG" != "latest" ] && ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}(-[0-9]+)?$'; then
+          if ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}(-[0-9]+)?$'; then
             echo "Invalid tag format: $IMAGE_TAG"
             echo "Expected format: vN.YYYYmmDD[-N] (examples: v1.20260222, v1.20260222-1, v2.20260222)"
             exit 1
@@ -163,15 +159,13 @@ jobs:
       - name: Resolve and validate image tag
         id: image_tag
         run: |
-          if [ "${GITHUB_REF_NAME}" = "main" ]; then
-            IMAGE_TAG="latest"
-          elif [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
             IMAGE_TAG="${{ github.event.inputs.version_tag }}"
           else
             IMAGE_TAG="${GITHUB_REF_NAME}"
           fi
 
-          if [ "$IMAGE_TAG" != "latest" ] && ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}(-[0-9]+)?$'; then
+          if ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}(-[0-9]+)?$'; then
             echo "Invalid tag format: $IMAGE_TAG"
             echo "Expected format: vN.YYYYmmDD[-N] (examples: v1.20260222, v1.20260222-1, v2.20260222)"
             exit 1
