@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version_tag:
-        description: 'Tag de imagen a desplegar (opcional, formato vN.YYYYmmDD)'
+        description: 'Tag de imagen a desplegar (opcional, formato vN.YYYYmmDD[-N])'
         required: false
         default: ''
         type: string
@@ -48,9 +48,9 @@ jobs:
             IMAGE_TAG="latest"
           fi
 
-          if [ "$IMAGE_TAG" != "latest" ] && ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}$'; then
+          if [ "$IMAGE_TAG" != "latest" ] && ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}(-[0-9]+)?$'; then
             echo "Invalid deploy tag format: $IMAGE_TAG"
-            echo "Expected format: vN.YYYYmmDD (examples: v1.20260222, v2.20260222)"
+            echo "Expected format: vN.YYYYmmDD[-N] (examples: v1.20260222, v1.20260222-1, v2.20260222)"
             exit 1
           fi
 

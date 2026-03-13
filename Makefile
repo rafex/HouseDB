@@ -4,8 +4,11 @@ SHELL := /bin/bash
 
 BACKEND_DIR ?= backend/java
 DB_MAKE_DIR ?= db/make
+TAG_MAJOR ?= 1
+TAG_DATE ?= $(shell date +%Y%m%d)
+TAG_PREFIX ?= v$(TAG_MAJOR).$(TAG_DATE)
 
-.PHONY: help build test clean verify image run-image db-up db-down db-migrate db-info db-validate
+.PHONY: help build test clean verify image run-image db-up db-down db-migrate db-info db-validate print-next-tag release-tag
 
 help:
 	@echo "Targets:"
@@ -18,6 +21,8 @@ help:
 	@echo "  make db-migrate   -> ejecuta migraciones Flyway"
 	@echo "  make db-info      -> muestra estado Flyway"
 	@echo "  make db-validate  -> valida migraciones Flyway"
+	@echo "  make print-next-tag -> calcula el siguiente tag release"
+	@echo "  make release-tag  -> crea y sube el siguiente tag release"
 
 build:
 	$(MAKE) -C $(BACKEND_DIR) build
@@ -51,3 +56,23 @@ db-info:
 
 db-validate:
 	$(MAKE) -C $(DB_MAKE_DIR) validate
+
+print-next-tag:
+	@prefix="$(TAG_PREFIX)"; \
+	last_tag="$$(git tag --list "$$prefix*" --sort=-v:refname | head -n 1)"; \
+	if [ -z "$$last_tag" ]; then \
+		echo "$$prefix"; \
+	elif [[ "$$last_tag" =~ ^$${prefix}-([0-9]+)$$ ]]; then \
+		next="$$(($${BASH_REMATCH[1]} + 1))"; \
+		echo "$$prefix-$$next"; \
+	elif [ "$$last_tag" = "$$prefix" ]; then \
+		echo "$$prefix-1"; \
+	else \
+		echo "$$prefix"; \
+	fi
+
+release-tag:
+	@next_tag="$$( $(MAKE) --no-print-directory print-next-tag TAG_MAJOR=$(TAG_MAJOR) TAG_DATE=$(TAG_DATE) )"; \
+	echo "Creating tag $$next_tag"; \
+	git tag -a "$$next_tag" -m "Release $$next_tag"; \
+	git push origin "$$next_tag"
