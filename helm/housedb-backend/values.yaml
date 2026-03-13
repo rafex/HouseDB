@@ -1,4 +1,4 @@
-replicaCount: 2
+replicaCount: 1
 
 image:
   repository: ghcr.io/rafex/housedb-backend
@@ -61,8 +61,8 @@ startupProbe:
 
 autoscaling:
   enabled: true
-  minReplicas: 2
-  maxReplicas: 6
+  minReplicas: 1
+  maxReplicas: 3
   targetCPUUtilizationPercentage: 75
 
 env:
