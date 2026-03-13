@@ -2,6 +2,7 @@ package com.rafex.housedb.services.impl;
 
 import com.rafex.housedb.repository.HouseManagementRepository;
 import com.rafex.housedb.service.models.HouseCreateResult;
+import com.rafex.housedb.service.models.HouseLocation;
 import com.rafex.housedb.service.models.HouseMember;
 import com.rafex.housedb.service.models.HouseSummary;
 import com.rafex.housedb.services.HouseService;
@@ -86,6 +87,18 @@ public final class HouseServiceImpl implements HouseService {
         }
         return mapper.toHouseMembers(repository.listHouseMembers(houseId,
                 includeDisabled == null ? Boolean.FALSE : includeDisabled, normalizeLimit(limit, 200),
+                normalizeOffset(offset)));
+    }
+
+    @Override
+    public List<HouseLocation> listHouseLocations(final UUID houseId, final Boolean includeDisabled, final Integer limit,
+            final Integer offset)
+            throws SQLException {
+        if (houseId == null) {
+            throw new IllegalArgumentException("houseId is required");
+        }
+        return mapper.toHouseLocations(repository.listHouseLocations(houseId,
+                includeDisabled == null ? Boolean.FALSE : includeDisabled, normalizeLimit(limit, 500),
                 normalizeOffset(offset)));
     }
 

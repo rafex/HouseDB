@@ -21,6 +21,7 @@ public final class HousesRouterHandler extends NonBlockingResourceHandler {
     private final ListHousesHandler listHousesHandler;
     private final ListHouseIdsHandler listHouseIdsHandler;
     private final ListHouseMembersHandler listHouseMembersHandler;
+    private final ListHouseLocationsHandler listHouseLocationsHandler;
     private final CreateHouseLocationHandler createHouseLocationHandler;
 
     public HousesRouterHandler(final JsonCodec jsonCodec, final HouseService houseService, final ItemFinderService itemService,
@@ -31,6 +32,7 @@ public final class HousesRouterHandler extends NonBlockingResourceHandler {
         listHousesHandler = new ListHousesHandler(houseService);
         listHouseIdsHandler = new ListHouseIdsHandler(houseService);
         listHouseMembersHandler = new ListHouseMembersHandler(houseService);
+        listHouseLocationsHandler = new ListHouseLocationsHandler(houseService);
         createHouseLocationHandler = new CreateHouseLocationHandler(jsonCodec, kiwiApiClient, itemService);
     }
 
@@ -45,7 +47,7 @@ public final class HousesRouterHandler extends NonBlockingResourceHandler {
                 Route.of("/", Set.of("GET", "POST")),
                 Route.of("/ids", Set.of("GET")),
                 Route.of("/{houseId}/members", Set.of("GET", "POST", "PUT")),
-                Route.of("/{houseId}/locations", Set.of("POST")));
+                Route.of("/{houseId}/locations", Set.of("GET", "POST")));
     }
 
     @Override
@@ -60,6 +62,9 @@ public final class HousesRouterHandler extends NonBlockingResourceHandler {
         final var houseId = x.pathParam("houseId");
         if (houseId != null && path.endsWith("/members")) {
             return listHouseMembersHandler.handle(x, UUID.fromString(houseId));
+        }
+        if (houseId != null && path.endsWith("/locations")) {
+            return listHouseLocationsHandler.handle(x, UUID.fromString(houseId));
         }
         return false;
     }

@@ -1,6 +1,7 @@
 package com.rafex.housedb.services;
 
 import com.rafex.housedb.service.models.HouseCreateResult;
+import com.rafex.housedb.service.models.HouseLocation;
 import com.rafex.housedb.service.models.HouseMember;
 import com.rafex.housedb.service.models.HouseSummary;
 
@@ -20,5 +21,8 @@ public interface HouseService {
             throws SQLException;
 
     List<HouseMember> listHouseMembers(UUID houseId, Boolean includeDisabled, Integer limit, Integer offset)
+            throws SQLException;
+
+    List<HouseLocation> listHouseLocations(UUID houseId, Boolean includeDisabled, Integer limit, Integer offset)
             throws SQLException;
 }

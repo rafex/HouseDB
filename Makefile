@@ -3,12 +3,15 @@ SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
 BACKEND_DIR ?= backend/java
+FRONTEND_DIR ?= frontend
 DB_MAKE_DIR ?= db/make
 TAG_MAJOR ?= 1
 TAG_DATE ?= $(shell date +%Y%m%d)
 TAG_PREFIX ?= v$(TAG_MAJOR).$(TAG_DATE)
+FRONTEND_HOST ?= 0.0.0.0
+FRONTEND_API_BASE_URL ?= https://housedb.v1.rafex.cloud
 
-.PHONY: help build test clean verify image run-image db-up db-down db-migrate db-info db-validate print-next-tag release-tag
+.PHONY: help build test clean verify image run-image db-up db-down db-migrate db-info db-validate frontend-install frontend-dev frontend-build frontend-preview frontend-dev-cloud print-next-tag release-tag
 
 help:
 	@echo "Targets:"
@@ -17,6 +20,11 @@ help:
 	@echo "  make verify       -> ejecuta verificación Maven"
 	@echo "  make image        -> construye imagen de backend"
 	@echo "  make run-image    -> ejecuta imagen de backend"
+	@echo "  make frontend-install -> instala dependencias del frontend"
+	@echo "  make frontend-dev     -> levanta frontend local"
+	@echo "  make frontend-dev-cloud -> levanta frontend local usando backend $(FRONTEND_API_BASE_URL)"
+	@echo "  make frontend-build   -> compila frontend"
+	@echo "  make frontend-preview -> previsualiza frontend compilado"
 	@echo "  make db-up        -> levanta PostgreSQL local"
 	@echo "  make db-migrate   -> ejecuta migraciones Flyway"
 	@echo "  make db-info      -> muestra estado Flyway"
@@ -41,6 +49,21 @@ image:
 
 run-image:
 	$(MAKE) -C $(BACKEND_DIR) run-image
+
+frontend-install:
+	npm --prefix $(FRONTEND_DIR) install
+
+frontend-dev:
+	npm --prefix $(FRONTEND_DIR) run dev -- --host $(FRONTEND_HOST)
+
+frontend-dev-cloud:
+	VITE_API_BASE_URL=$(FRONTEND_API_BASE_URL) npm --prefix $(FRONTEND_DIR) run dev -- --host $(FRONTEND_HOST)
+
+frontend-build:
+	npm --prefix $(FRONTEND_DIR) run build
+
+frontend-preview:
+	npm --prefix $(FRONTEND_DIR) run preview -- --host $(FRONTEND_HOST)
 
 db-up:
 	$(MAKE) -C $(DB_MAKE_DIR) up

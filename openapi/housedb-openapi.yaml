@@ -18,6 +18,7 @@ tags:
   - name: Users
   - name: Items
   - name: Houses
+  - name: Metadata
 
 paths:
   /health:
@@ -628,6 +629,21 @@ paths:
                 $ref: '#/components/schemas/HouseMember'
 
   /houses/{houseId}/locations:
+    get:
+      tags: [Houses]
+      summary: Listar ubicaciones de una casa
+      parameters:
+        - $ref: '#/components/parameters/HouseIdPath'
+        - $ref: '#/components/parameters/IncludeDisabledQuery'
+        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/OffsetQuery'
+      responses:
+        '200':
+          description: Ubicaciones registradas para la casa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HouseLocationListResponse'
     post:
       tags: [Houses]
       summary: Crear ubicación de casa (fachada HouseDB -> Kiwi)
@@ -679,6 +695,32 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /metadata-catalogs:
+    get:
+      tags: [Metadata]
+      summary: Listar catalogo reutilizable de metadatos
+      description: |
+        Endpoint privado. Requiere JWT Bearer valido.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: metadataTarget
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [kiwi_object, inventory_item]
+        - $ref: '#/components/parameters/IncludeDisabledQuery'
+        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/OffsetQuery'
+      responses:
+        '200':
+          description: Catalogos de metadatos reutilizables
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetadataCatalogListResponse'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -704,6 +746,27 @@ components:
       schema:
         type: string
         format: uuid
+    IncludeDisabledQuery:
+      name: includeDisabled
+      in: query
+      required: false
+      schema:
+        type: boolean
+    LimitQuery:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 500
+    OffsetQuery:
+      name: offset
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
 
   schemas:
     HelloNameRequest:
@@ -999,6 +1062,62 @@ components:
       required: [houseLocationId]
       properties:
         houseLocationId: { type: string, format: uuid }
+
+    HouseLocation:
+      type: object
+      required: [houseLocationId, houseId, locationKind, name, levelDepth, isLeaf, enabled]
+      properties:
+        houseLocationId: { type: string, format: uuid }
+        houseId: { type: string, format: uuid }
+        kiwiLocationId: { type: string, format: uuid, nullable: true }
+        kiwiParentLocationId: { type: string, format: uuid, nullable: true }
+        parentHouseLocationId: { type: string, format: uuid, nullable: true }
+        locationKind: { type: string, example: slot }
+        name: { type: string }
+        path: { type: string, nullable: true }
+        levelDepth: { type: integer }
+        latitude: { type: number, format: double, nullable: true }
+        longitude: { type: number, format: double, nullable: true }
+        referenceCode: { type: string, nullable: true }
+        isLeaf: { type: boolean }
+        notes: { type: string, nullable: true }
+        enabled: { type: boolean }
+
+    HouseLocationListResponse:
+      type: object
+      required: [locations, count]
+      properties:
+        locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/HouseLocation'
+        count:
+          type: integer
+
+    MetadataCatalog:
+      type: object
+      required: [metadataCatalogId, metadataTarget, code, name, payloadJson, enabled]
+      properties:
+        metadataCatalogId: { type: string, format: uuid }
+        metadataTarget:
+          type: string
+          enum: [kiwi_object, inventory_item]
+        code: { type: string }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        payloadJson: { type: string }
+        enabled: { type: boolean }
+
+    MetadataCatalogListResponse:
+      type: object
+      required: [catalogs, count]
+      properties:
+        catalogs:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetadataCatalog'
+        count:
+          type: integer
 
     SearchInventoryResponse:
       type: object

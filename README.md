@@ -1,12 +1,18 @@
 # HouseDB
 
 ## Estructura
+- `frontend`: frontend Vue/Vite para la consola HouseDB
 - `backend/java`: backend Java multi-módulo
 - `db`: migraciones y utilidades de base de datos
 - `helm/housedb-backend`: chart base para despliegue
 - `script`: scripts operativos
 
 ## Comandos
+- `cd frontend && npm install && npm run dev`: levanta frontend en desarrollo
+- `cd frontend && npm run build`: compila frontend
+- `make frontend-install`: instala dependencias del frontend
+- `make frontend-dev`: levanta el frontend local
+- `make frontend-dev-cloud`: levanta el frontend local usando el backend `https://housedb.v1.rafex.cloud`
 - `make build`: compila backend
 - `make test`: ejecuta tests backend
 - `make db-up`: levanta PostgreSQL con Podman

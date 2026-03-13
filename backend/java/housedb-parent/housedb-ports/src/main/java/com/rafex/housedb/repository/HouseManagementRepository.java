@@ -1,6 +1,7 @@
 package com.rafex.housedb.repository;
 
 import com.rafex.housedb.repository.models.HouseCreateResultEntity;
+import com.rafex.housedb.repository.models.HouseLocationEntity;
 import com.rafex.housedb.repository.models.HouseMemberEntity;
 import com.rafex.housedb.repository.models.HouseSummaryEntity;
 
@@ -20,5 +21,8 @@ public interface HouseManagementRepository {
             throws SQLException;
 
     List<HouseMemberEntity> listHouseMembers(UUID houseId, Boolean includeDisabled, int limit, int offset)
+            throws SQLException;
+
+    List<HouseLocationEntity> listHouseLocations(UUID houseId, Boolean includeDisabled, int limit, int offset)
             throws SQLException;
 }

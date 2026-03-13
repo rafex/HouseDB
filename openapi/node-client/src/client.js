@@ -170,4 +170,23 @@ export class HouseDbClient {
   createHouseLocation(houseId, payload) {
     return this.request(`/houses/${houseId}/locations`, { method: "POST", body: payload });
   }
+
+  listHouseLocations(houseId, { includeDisabled, limit, offset } = {}) {
+    const params = new URLSearchParams();
+    if (includeDisabled !== undefined) params.set("includeDisabled", String(includeDisabled));
+    if (limit !== undefined) params.set("limit", String(limit));
+    if (offset !== undefined) params.set("offset", String(offset));
+    const query = params.toString();
+    return this.request(`/houses/${houseId}/locations${query ? `?${query}` : ""}`);
+  }
+
+  listMetadataCatalogs({ metadataTarget, includeDisabled, limit, offset } = {}) {
+    const params = new URLSearchParams();
+    if (metadataTarget) params.set("metadataTarget", metadataTarget);
+    if (includeDisabled !== undefined) params.set("includeDisabled", String(includeDisabled));
+    if (limit !== undefined) params.set("limit", String(limit));
+    if (offset !== undefined) params.set("offset", String(offset));
+    const query = params.toString();
+    return this.request(`/metadata-catalogs${query ? `?${query}` : ""}`);
+  }
 }

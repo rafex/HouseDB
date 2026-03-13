@@ -50,6 +50,8 @@ npm run start -- list-houses
 npm run start -- list-house-ids
 npm run start -- create-house --name "Casa CDMX"
 npm run start -- list-house-members --house-id UUID
+npm run start -- list-house-locations --house-id UUID
+npm run start -- list-metadata-catalogs -- --metadata-target inventory_item
 npm run start -- upsert-house-member --house-id UUID --user-id UUID --role guest --method PUT
 npm run start -- create-house-location --house-id UUID --name "Closet principal" --parent-house-location-id UUID
 ```
@@ -62,3 +64,5 @@ export HOUSEDB_TOKEN="<bearer-opcional>"
 ```
 
 Para endpoints protegidos, primero obtén un JWT con `login` o `token`, y luego exporta `HOUSEDB_TOKEN`.
+
+`/metadata-catalogs` es un endpoint privado y tambien requiere `HOUSEDB_TOKEN`.

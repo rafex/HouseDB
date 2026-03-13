@@ -1,9 +1,11 @@
 package com.rafex.housedb.services.impl;
 
 import com.rafex.housedb.repository.models.HouseCreateResultEntity;
+import com.rafex.housedb.repository.models.HouseLocationEntity;
 import com.rafex.housedb.repository.models.HouseMemberEntity;
 import com.rafex.housedb.repository.models.HouseSummaryEntity;
 import com.rafex.housedb.service.models.HouseCreateResult;
+import com.rafex.housedb.service.models.HouseLocation;
 import com.rafex.housedb.service.models.HouseMember;
 import com.rafex.housedb.service.models.HouseSummary;
 
@@ -31,5 +33,16 @@ final class HouseModelMapper {
 
     List<HouseMember> toHouseMembers(final List<HouseMemberEntity> source) {
         return source.stream().map(this::toHouseMember).toList();
+    }
+
+    List<HouseLocation> toHouseLocations(final List<HouseLocationEntity> source) {
+        return source.stream().map(this::toHouseLocation).toList();
+    }
+
+    private HouseLocation toHouseLocation(final HouseLocationEntity source) {
+        return new HouseLocation(source.houseLocationId(), source.houseId(), source.kiwiLocationId(),
+                source.kiwiParentLocationId(), source.parentHouseLocationId(), source.locationKind(), source.name(),
+                source.path(), source.levelDepth(), source.latitude(), source.longitude(), source.referenceCode(),
+                source.isLeaf(), source.notes(), source.enabled());
     }
 }

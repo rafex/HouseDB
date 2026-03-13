@@ -33,6 +33,8 @@ Comandos:
   list-house-ids [--include-disabled true|false] [--limit N]
   create-house --name NOMBRE [--city CITY] [--state STATE] [--country COUNTRY]
   list-house-members --house-id UUID [--include-disabled true|false] [--limit N]
+  list-house-locations --house-id UUID [--include-disabled true|false] [--limit N] [--offset N]
+  list-metadata-catalogs [--metadata-target kiwi_object|inventory_item] [--include-disabled true|false] [--limit N] [--offset N]
   upsert-house-member --house-id UUID --user-id UUID [--role owner|family|guest] [--enabled true|false] [--method POST|PUT]
   create-house-location --house-id UUID --name NOMBRE [--parent-house-location-id UUID]
   demo
@@ -187,6 +189,23 @@ async function main() {
         });
         break;
 
+      case "list-house-locations":
+        res = await client.listHouseLocations(argValue("--house-id"), {
+          includeDisabled: toBool(argValue("--include-disabled")),
+          limit: argValue("--limit") ? Number(argValue("--limit")) : undefined,
+          offset: argValue("--offset") ? Number(argValue("--offset")) : undefined
+        });
+        break;
+
+      case "list-metadata-catalogs":
+        res = await client.listMetadataCatalogs({
+          metadataTarget: argValue("--metadata-target") || undefined,
+          includeDisabled: toBool(argValue("--include-disabled")),
+          limit: argValue("--limit") ? Number(argValue("--limit")) : undefined,
+          offset: argValue("--offset") ? Number(argValue("--offset")) : undefined
+        });
+        break;
+
       case "upsert-house-member":
         res = await client.upsertHouseMember(
           argValue("--house-id"),
@@ -212,12 +231,16 @@ async function main() {
         const helloName = await client.helloName({ name: "Demo" });
         const houses = await client.listHouses();
         const houseIds = await client.listHouseIds();
+        const metadataCatalogs = process.env.HOUSEDB_TOKEN
+          ? await client.listMetadataCatalogs()
+          : { data: "skipped: requires HOUSEDB_TOKEN" };
         printJson({
           health: health.data,
           hello: hello.data,
           helloName: helloName.data,
           houses: houses.data,
           houseIds: houseIds.data,
+          metadataCatalogs: metadataCatalogs.data,
           baseUrl: client.baseUrl
         });
         return;

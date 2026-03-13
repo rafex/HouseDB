@@ -6,20 +6,24 @@ import com.rafex.housedb.repository.HouseLocationSyncRepository;
 import com.rafex.housedb.repository.HouseManagementRepository;
 import com.rafex.housedb.repository.InventoryMutationRepository;
 import com.rafex.housedb.repository.InventorySearchRepository;
+import com.rafex.housedb.repository.MetadataCatalogRepository;
 import com.rafex.housedb.repository.UserRepository;
 import com.rafex.housedb.repository.impl.AppClientRepositoryImpl;
 import com.rafex.housedb.repository.impl.HouseRepositoryImpl;
 import com.rafex.housedb.repository.impl.ItemRepositoryImpl;
+import com.rafex.housedb.repository.impl.MetadataCatalogRepositoryImpl;
 import com.rafex.housedb.repository.impl.UserRepositoryImpl;
 import com.rafex.housedb.security.PasswordHasherPBKDF2;
 import com.rafex.housedb.services.AppClientAuthService;
 import com.rafex.housedb.services.AuthService;
 import com.rafex.housedb.services.HouseService;
 import com.rafex.housedb.services.ItemFinderService;
+import com.rafex.housedb.services.MetadataCatalogService;
 import com.rafex.housedb.services.impl.AppClientAuthServiceImpl;
 import com.rafex.housedb.services.impl.AuthServiceImpl;
 import com.rafex.housedb.services.impl.HouseServiceImpl;
 import com.rafex.housedb.services.impl.ItemFinderServiceImpl;
+import com.rafex.housedb.services.impl.MetadataCatalogServiceImpl;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -36,6 +40,8 @@ public final class HouseDbContainer {
             Optional<Supplier<ItemFinderService>> itemFinderService,
             Optional<Supplier<HouseManagementRepository>> houseManagementRepository,
             Optional<Supplier<HouseService>> houseService,
+            Optional<Supplier<MetadataCatalogRepository>> metadataCatalogRepository,
+            Optional<Supplier<MetadataCatalogService>> metadataCatalogService,
             Optional<Supplier<UserRepository>> userRepository,
             Optional<Supplier<AppClientRepository>> appClientRepository,
             Optional<Supplier<AuthService>> authService,
@@ -56,6 +62,8 @@ public final class HouseDbContainer {
                     ? houseManagementRepository
                     : Optional.empty();
             houseService = houseService != null ? houseService : Optional.empty();
+            metadataCatalogRepository = metadataCatalogRepository != null ? metadataCatalogRepository : Optional.empty();
+            metadataCatalogService = metadataCatalogService != null ? metadataCatalogService : Optional.empty();
             userRepository = userRepository != null ? userRepository : Optional.empty();
             appClientRepository = appClientRepository != null ? appClientRepository : Optional.empty();
             authService = authService != null ? authService : Optional.empty();
@@ -77,6 +85,8 @@ public final class HouseDbContainer {
             private Supplier<ItemFinderService> itemFinderService;
             private Supplier<HouseManagementRepository> houseManagementRepository;
             private Supplier<HouseService> houseService;
+            private Supplier<MetadataCatalogRepository> metadataCatalogRepository;
+            private Supplier<MetadataCatalogService> metadataCatalogService;
             private Supplier<UserRepository> userRepository;
             private Supplier<AppClientRepository> appClientRepository;
             private Supplier<AuthService> authService;
@@ -123,6 +133,16 @@ public final class HouseDbContainer {
                 return this;
             }
 
+            public Builder metadataCatalogRepository(final Supplier<MetadataCatalogRepository> value) {
+                metadataCatalogRepository = value;
+                return this;
+            }
+
+            public Builder metadataCatalogService(final Supplier<MetadataCatalogService> value) {
+                metadataCatalogService = value;
+                return this;
+            }
+
             public Builder userRepository(final Supplier<UserRepository> value) {
                 userRepository = value;
                 return this;
@@ -153,6 +173,7 @@ public final class HouseDbContainer {
                         Optional.ofNullable(inventorySearchRepository), Optional.ofNullable(inventoryMutationRepository),
                         Optional.ofNullable(houseLocationSyncRepository), Optional.ofNullable(itemFinderService),
                         Optional.ofNullable(houseManagementRepository), Optional.ofNullable(houseService),
+                        Optional.ofNullable(metadataCatalogRepository), Optional.ofNullable(metadataCatalogService),
                         Optional.ofNullable(userRepository), Optional.ofNullable(appClientRepository),
                         Optional.ofNullable(authService), Optional.ofNullable(appClientAuthService),
                         Optional.ofNullable(passwordHasherPBKDF2));
@@ -169,6 +190,8 @@ public final class HouseDbContainer {
     private final Lazy<ItemFinderService> itemFinderService;
     private final Lazy<HouseManagementRepository> houseManagementRepository;
     private final Lazy<HouseService> houseService;
+    private final Lazy<MetadataCatalogRepository> metadataCatalogRepository;
+    private final Lazy<MetadataCatalogService> metadataCatalogService;
     private final Lazy<HouseRepositoryImpl> houseRepository;
     private final Lazy<UserRepository> userRepository;
     private final Lazy<AppClientRepository> appClientRepository;
@@ -187,6 +210,8 @@ public final class HouseDbContainer {
         dataSource = new Lazy<>(select(overrides.dataSource(), DataSourceFactory::create));
         itemRepository = new Lazy<>(() -> new ItemRepositoryImpl(dataSource()));
         houseRepository = new Lazy<>(() -> new HouseRepositoryImpl(dataSource()));
+        metadataCatalogRepository = new Lazy<>(
+                select(overrides.metadataCatalogRepository(), () -> new MetadataCatalogRepositoryImpl(dataSource())));
 
         inventorySearchRepository = new Lazy<>(select(overrides.inventorySearchRepository(), this::itemRepository));
         inventoryMutationRepository = new Lazy<>(select(overrides.inventoryMutationRepository(), this::itemRepository));
@@ -197,6 +222,8 @@ public final class HouseDbContainer {
                         houseLocationSyncRepository())));
         houseManagementRepository = new Lazy<>(select(overrides.houseManagementRepository(), this::houseRepository));
         houseService = new Lazy<>(select(overrides.houseService(), () -> new HouseServiceImpl(houseManagementRepository())));
+        metadataCatalogService = new Lazy<>(select(overrides.metadataCatalogService(),
+                () -> new MetadataCatalogServiceImpl(metadataCatalogRepository())));
 
         userRepository = new Lazy<>(select(overrides.userRepository(), () -> new UserRepositoryImpl(dataSource())));
         appClientRepository = new Lazy<>(
@@ -248,6 +275,14 @@ public final class HouseDbContainer {
         return houseService.get();
     }
 
+    public MetadataCatalogRepository metadataCatalogRepository() {
+        return metadataCatalogRepository.get();
+    }
+
+    public MetadataCatalogService metadataCatalogService() {
+        return metadataCatalogService.get();
+    }
+
     public UserRepository userRepository() {
         return userRepository.get();
     }
@@ -277,6 +312,8 @@ public final class HouseDbContainer {
         itemFinderService();
         houseManagementRepository();
         houseService();
+        metadataCatalogRepository();
+        metadataCatalogService();
         userRepository();
         appClientRepository();
         authService();

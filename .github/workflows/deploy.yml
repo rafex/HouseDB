@@ -27,7 +27,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Configure kubeconfig
         run: |
@@ -36,7 +36,7 @@ jobs:
           chmod 600 "$HOME/.kube/config"
 
       - name: Install Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@v4.3.1
 
       - name: Resolve deploy image tag
         id: deploy_tag

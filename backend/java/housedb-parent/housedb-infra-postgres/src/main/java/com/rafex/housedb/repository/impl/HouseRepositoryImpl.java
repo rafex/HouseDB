@@ -2,6 +2,7 @@ package com.rafex.housedb.repository.impl;
 
 import com.rafex.housedb.repository.HouseManagementRepository;
 import com.rafex.housedb.repository.models.HouseCreateResultEntity;
+import com.rafex.housedb.repository.models.HouseLocationEntity;
 import com.rafex.housedb.repository.models.HouseMemberEntity;
 import com.rafex.housedb.repository.models.HouseSummaryEntity;
 
@@ -11,6 +12,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.math.BigDecimal;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -66,6 +68,24 @@ public final class HouseRepositoryImpl implements HouseManagementRepository {
                    role,
                    enabled
               FROM api_list_house_members(?, ?, ?, ?)
+            """;
+    private static final String SQL_LIST_HOUSE_LOCATIONS = """
+            SELECT house_location_id,
+                   house_id,
+                   kiwi_location_id,
+                   kiwi_parent_location_id,
+                   parent_house_location_id,
+                   location_kind::text AS location_kind,
+                   name,
+                   path,
+                   level_depth,
+                   latitude,
+                   longitude,
+                   reference_code,
+                   is_leaf,
+                   notes,
+                   enabled
+              FROM api_list_house_locations(?, ?, ?, ?)
             """;
 
     private final DataSource dataSource;
@@ -186,5 +206,45 @@ public final class HouseRepositoryImpl implements HouseManagementRepository {
             }
         }
         return result;
+    }
+
+    @Override
+    public List<HouseLocationEntity> listHouseLocations(final UUID houseId, final Boolean includeDisabled,
+            final int limit, final int offset)
+            throws SQLException {
+        final var result = new ArrayList<HouseLocationEntity>();
+        try (Connection connection = dataSource.getConnection();
+                PreparedStatement ps = connection.prepareStatement(SQL_LIST_HOUSE_LOCATIONS)) {
+            ps.setObject(1, houseId);
+            ps.setBoolean(2, includeDisabled);
+            ps.setInt(3, limit);
+            ps.setInt(4, offset);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    result.add(new HouseLocationEntity(
+                            rs.getObject("house_location_id", UUID.class),
+                            rs.getObject("house_id", UUID.class),
+                            rs.getObject("kiwi_location_id", UUID.class),
+                            rs.getObject("kiwi_parent_location_id", UUID.class),
+                            rs.getObject("parent_house_location_id", UUID.class),
+                            rs.getString("location_kind"),
+                            rs.getString("name"),
+                            rs.getString("path"),
+                            rs.getInt("level_depth"),
+                            toDouble(rs.getBigDecimal("latitude")),
+                            toDouble(rs.getBigDecimal("longitude")),
+                            rs.getString("reference_code"),
+                            rs.getBoolean("is_leaf"),
+                            rs.getString("notes"),
+                            rs.getBoolean("enabled")));
+                }
+            }
+        }
+        return result;
+    }
+
+    private static Double toDouble(final BigDecimal value) {
+        return value == null ? null : value.doubleValue();
     }
 }
