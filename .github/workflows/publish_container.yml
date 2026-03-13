@@ -1,5 +1,5 @@
 ---
-name: Build and Publish Container
+name: Build and Publish Containers
 
 on:
   push:
@@ -19,7 +19,7 @@ permissions:
   packages: write
 
 jobs:
-  check_paths:
+  check_backend_paths:
     runs-on: ubuntu-latest
     outputs:
       changed: ${{ steps.check.outputs.changed }}
@@ -29,7 +29,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check for changes in backend/java/housedb* or backend/java/Dockerfile
+      - name: Check for backend changes
         id: check
         run: |
           if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] || [ "${GITHUB_REF_TYPE}" = "tag" ] || [ "${GITHUB_REF_NAME}" = "main" ]; then
@@ -45,10 +45,36 @@ jobs:
             git diff --name-only "$PARENT" "${GITHUB_SHA}" | grep -E '^backend/java/(housedb|Dockerfile$)' > /dev/null && echo "changed=true" >> "$GITHUB_OUTPUT" || echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
 
-  build-and-push:
-    name: Build and push to GHCR
-    needs: check_paths
-    if: ${{ github.event_name == 'workflow_dispatch' || needs.check_paths.outputs.changed == 'true' }}
+  check_frontend_paths:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Check for frontend changes
+        id: check
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] || [ "${GITHUB_REF_TYPE}" = "tag" ] || [ "${GITHUB_REF_NAME}" = "main" ]; then
+            echo "Detected manual run, tag push or main push; allowing build."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          PARENT=$(git rev-parse "${GITHUB_SHA}^" 2>/dev/null || true)
+          if [ -z "$PARENT" ]; then
+            git diff --name-only "${GITHUB_SHA}" | grep -E '^(frontend/|frontend/Dockerfile|helm/housedb-frontend/)' > /dev/null && echo "changed=true" >> "$GITHUB_OUTPUT" || echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            git diff --name-only "$PARENT" "${GITHUB_SHA}" | grep -E '^(frontend/|frontend/Dockerfile|helm/housedb-frontend/)' > /dev/null && echo "changed=true" >> "$GITHUB_OUTPUT" || echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-and-push-backend:
+    name: Build and push backend to GHCR
+    needs: check_backend_paths
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.check_backend_paths.outputs.changed == 'true' }}
     runs-on: ubuntu-latest
 
     steps:
@@ -59,7 +85,7 @@ jobs:
         id: image_tag
         run: |
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
-            IMAGE_TAG="latest"
+          IMAGE_TAG="latest"
           elif [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
             IMAGE_TAG="${{ github.event.inputs.version_tag }}"
           else
@@ -117,6 +143,83 @@ jobs:
       - name: Publish visibility note
         run: |
           IMAGE_BASE="ghcr.io/${{ github.repository_owner }}/housedb-backend"
+          echo "Image pushed to: $IMAGE_BASE"
+          echo "Final image URL (primary): $IMAGE_BASE:${{ steps.image_tag.outputs.value }}"
+          echo "Final image URL (sha): $IMAGE_BASE:${{ github.sha }}"
+          echo "Make the package public in GitHub Packages UI if you want anonymous pulls."
+
+  build-and-push-frontend:
+    name: Build and push frontend to GHCR
+    needs: check_frontend_paths
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.check_frontend_paths.outputs.changed == 'true' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Resolve and validate image tag
+        id: image_tag
+        run: |
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            IMAGE_TAG="latest"
+          elif [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            IMAGE_TAG="${{ github.event.inputs.version_tag }}"
+          else
+            IMAGE_TAG="${GITHUB_REF_NAME}"
+          fi
+
+          if [ "$IMAGE_TAG" != "latest" ] && ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}(-[0-9]+)?$'; then
+            echo "Invalid tag format: $IMAGE_TAG"
+            echo "Expected format: vN.YYYYmmDD[-N] (examples: v1.20260222, v1.20260222-1, v2.20260222)"
+            exit 1
+          fi
+
+          echo "value=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Validate frontend build
+        run: |
+          npm --prefix frontend ci
+          VITE_API_BASE_URL=https://housedb.v1.rafex.cloud npm --prefix frontend run build
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push frontend (release/latest + sha tags)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: frontend/Dockerfile
+          build-args: |
+            VITE_API_BASE_URL=https://housedb.v1.rafex.cloud
+          push: true
+          provenance: false
+          sbom: false
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/housedb-frontend:${{ steps.image_tag.outputs.value }}
+            ghcr.io/${{ github.repository_owner }}/housedb-frontend:${{ github.sha }}
+
+      - name: Publish visibility note
+        run: |
+          IMAGE_BASE="ghcr.io/${{ github.repository_owner }}/housedb-frontend"
           echo "Image pushed to: $IMAGE_BASE"
           echo "Final image URL (primary): $IMAGE_BASE:${{ steps.image_tag.outputs.value }}"
           echo "Final image URL (sha): $IMAGE_BASE:${{ github.sha }}"

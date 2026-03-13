@@ -1,0 +1,6 @@
+apiVersion: v2
+name: housedb-frontend
+description: Helm chart para desplegar el frontend de HouseDB
+type: application
+version: 0.1.0
+appVersion: "latest"

@@ -6,7 +6,7 @@ import { useSessionStore } from '../stores/session'
 
 const route = useRoute()
 const router = useRouter()
-const { isAuthenticated, state, logout } = useSessionStore()
+const { isAuthenticated, sessionSecondsLeft, state, logout } = useSessionStore()
 
 const navigationItems = [
   {
@@ -76,6 +76,8 @@ function handleLogout() {
         p.topbar__subtitle {{ currentSection }}
 
       .topbar__actions
+        p.status-pill(v-if="isAuthenticated && sessionSecondsLeft !== null")
+          | Token {{ sessionSecondsLeft }}s
         RouterLink.ghost-button(to="/objetos") Ver objetos
         RouterLink.primary-button(v-if="isAuthenticated" to="/objetos/nuevo") Nuevo objeto
         button.primary-button(v-if="isAuthenticated" type="button" @click="handleLogout") Cerrar sesion

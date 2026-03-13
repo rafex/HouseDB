@@ -42,6 +42,7 @@ npm run start -- hello-name
 npm run start -- hello-name -- --name Rafex
 npm run start -- hello-name-post -- --name Rafex
 npm run start -- login --username demo --password secret
+npm run start -- refresh-session --refresh-token TOKEN
 npm run start -- token --client-id app1 --client-secret supersecret
 npm run start -- get-item --id UUID
 npm run start -- create-item --house-location-leaf-id UUID --object-name "Linterna" --object-category camping --kiwi-metadata '{"source":"housedb"}' --housedb-metadata '{"purchaseDate":"2026-02-26"}'

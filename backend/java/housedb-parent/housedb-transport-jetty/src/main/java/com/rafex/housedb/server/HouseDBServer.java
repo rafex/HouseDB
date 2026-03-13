@@ -7,6 +7,7 @@ import com.rafex.housedb.handlers.HelloHandler;
 import com.rafex.housedb.handlers.items.ItemAliasRouterHandler;
 import com.rafex.housedb.handlers.items.ItemsRouterHandler;
 import com.rafex.housedb.handlers.metadata.MetadataCatalogsRouterHandler;
+import com.rafex.housedb.handlers.support.CorsMiddleware;
 import com.rafex.housedb.handlers.support.GlowrootMiddleware;
 import com.rafex.housedb.handlers.support.NotFoundResource;
 import com.rafex.housedb.handlers.houses.HousesRouterHandler;
@@ -43,7 +44,7 @@ public final class HouseDBServer {
 
         final var helloHandler = new HelloHandler(jsonCodec);
         final var authRoutes = new AuthRouterHandler(jsonCodec, jwt, container.authService(),
-                container.appClientAuthService());
+                container.appClientAuthService(), container.refreshTokenService(), container.userRepository());
         final var itemRoutes = new ItemsRouterHandler(jsonCodec, container.itemFinderService(), kiwiApiClient);
         final var itemAliasRoutes = new ItemAliasRouterHandler(jsonCodec, kiwiApiClient, container.itemFinderService());
         final var houseRoutes = new HousesRouterHandler(jsonCodec, container.houseService(), container.itemFinderService(),
@@ -74,8 +75,9 @@ public final class HouseDBServer {
                 return TokenVerificationResult.failed(result.code());
             }
             return result.claims()
+                    .filter(claims -> !"refresh".equals(String.valueOf(claims.extras().get("token_use"))))
                     .map(TokenVerificationResult::ok)
-                    .orElseGet(() -> TokenVerificationResult.failed("verify_exception"));
+                    .orElseGet(() -> TokenVerificationResult.failed("invalid_token_use"));
         };
 
         final var authPolicies = List.of(
@@ -85,6 +87,8 @@ public final class HouseDBServer {
                 AuthPolicy.publicPath("POST", "/hello/name"),
                 AuthPolicy.publicPath("POST", "/auth/login"),
                 AuthPolicy.publicPath("POST", "/auth/token"),
+                AuthPolicy.publicPath("POST", "/auth/refresh"),
+                AuthPolicy.publicPath("OPTIONS", "/*"),
                 AuthPolicy.protectedPrefix("/items"),
                 AuthPolicy.protectedPrefix("/items/*"),
                 AuthPolicy.protectedPrefix("/item/*"),
@@ -95,7 +99,7 @@ public final class HouseDBServer {
                 AuthPolicy.protectedPrefix("/users"),
                 AuthPolicy.protectedPrefix("/users/*"));
 
-        final List<JettyMiddleware> middlewares = List.of(new GlowrootMiddleware());
+        final List<JettyMiddleware> middlewares = List.of(new CorsMiddleware(), new GlowrootMiddleware());
 
         final var config = JettyServerConfig.fromEnv();
         final var runner = JettyServerFactory.create(config, routeRegistry, jsonCodec, tokenVerifier,

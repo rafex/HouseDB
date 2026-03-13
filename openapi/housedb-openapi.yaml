@@ -120,7 +120,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthTokenResponse'
+                $ref: '#/components/schemas/AuthSessionResponse'
         '400':
           description: Payload inválido
           content:
@@ -178,6 +178,43 @@ paths:
                 $ref: '#/components/schemas/UnauthorizedResponse'
         '403':
           description: Client deshabilitado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Renovar sesion JWT usando refresh token
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Nuevos tokens emitidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSessionResponse'
+        '400':
+          description: Payload invalido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Refresh token invalido o expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedResponse'
+        '403':
+          description: Usuario deshabilitado
           content:
             application/json:
               schema:
@@ -810,6 +847,22 @@ components:
         access_token: { type: string }
         expires_in: { type: integer }
         grant_type: { type: string, nullable: true, example: client_credentials }
+
+    AuthSessionResponse:
+      type: object
+      required: [token_type, access_token, expires_in, refresh_token, refresh_expires_in]
+      properties:
+        token_type: { type: string, example: Bearer }
+        access_token: { type: string }
+        expires_in: { type: integer }
+        refresh_token: { type: string }
+        refresh_expires_in: { type: integer }
+
+    RefreshTokenRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken: { type: string }
 
     HealthResponse:
       type: object

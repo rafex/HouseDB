@@ -17,6 +17,7 @@ const loading = reactive({
 const feedback = reactive({
   publicInfo: '',
   login: '',
+  loginCode: '',
 })
 
 const health = ref(null)
@@ -45,6 +46,7 @@ async function loadPublicInfo() {
 async function submitLogin() {
   loading.login = true
   feedback.login = ''
+  feedback.loginCode = ''
 
   try {
     await login(loginForm)
@@ -58,6 +60,7 @@ async function submitLogin() {
     router.push(redirectTo)
   } catch (error) {
     feedback.login = error.message
+    feedback.loginCode = error.detail?.code ?? ''
   } finally {
     loading.login = false
   }
@@ -99,4 +102,5 @@ section.auth-shell
       input.form-input(v-model="loginForm.password" type="password" placeholder="password" required)
       button.primary-button(type="submit" :disabled="loading.login") Iniciar sesion
       p.form-feedback.form-feedback--error(v-if="feedback.login || state.error") {{ feedback.login || state.error }}
+      p.muted-copy(v-if="feedback.loginCode") Codigo backend: {{ feedback.loginCode }}
 </template>

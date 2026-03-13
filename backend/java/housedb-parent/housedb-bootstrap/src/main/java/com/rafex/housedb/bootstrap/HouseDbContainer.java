@@ -7,11 +7,13 @@ import com.rafex.housedb.repository.HouseManagementRepository;
 import com.rafex.housedb.repository.InventoryMutationRepository;
 import com.rafex.housedb.repository.InventorySearchRepository;
 import com.rafex.housedb.repository.MetadataCatalogRepository;
+import com.rafex.housedb.repository.RefreshTokenRepository;
 import com.rafex.housedb.repository.UserRepository;
 import com.rafex.housedb.repository.impl.AppClientRepositoryImpl;
 import com.rafex.housedb.repository.impl.HouseRepositoryImpl;
 import com.rafex.housedb.repository.impl.ItemRepositoryImpl;
 import com.rafex.housedb.repository.impl.MetadataCatalogRepositoryImpl;
+import com.rafex.housedb.repository.impl.RefreshTokenRepositoryImpl;
 import com.rafex.housedb.repository.impl.UserRepositoryImpl;
 import com.rafex.housedb.security.PasswordHasherPBKDF2;
 import com.rafex.housedb.services.AppClientAuthService;
@@ -19,11 +21,13 @@ import com.rafex.housedb.services.AuthService;
 import com.rafex.housedb.services.HouseService;
 import com.rafex.housedb.services.ItemFinderService;
 import com.rafex.housedb.services.MetadataCatalogService;
+import com.rafex.housedb.services.RefreshTokenService;
 import com.rafex.housedb.services.impl.AppClientAuthServiceImpl;
 import com.rafex.housedb.services.impl.AuthServiceImpl;
 import com.rafex.housedb.services.impl.HouseServiceImpl;
 import com.rafex.housedb.services.impl.ItemFinderServiceImpl;
 import com.rafex.housedb.services.impl.MetadataCatalogServiceImpl;
+import com.rafex.housedb.services.impl.RefreshTokenServiceImpl;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -43,6 +47,8 @@ public final class HouseDbContainer {
             Optional<Supplier<MetadataCatalogRepository>> metadataCatalogRepository,
             Optional<Supplier<MetadataCatalogService>> metadataCatalogService,
             Optional<Supplier<UserRepository>> userRepository,
+            Optional<Supplier<RefreshTokenRepository>> refreshTokenRepository,
+            Optional<Supplier<RefreshTokenService>> refreshTokenService,
             Optional<Supplier<AppClientRepository>> appClientRepository,
             Optional<Supplier<AuthService>> authService,
             Optional<Supplier<AppClientAuthService>> appClientAuthService,
@@ -65,6 +71,8 @@ public final class HouseDbContainer {
             metadataCatalogRepository = metadataCatalogRepository != null ? metadataCatalogRepository : Optional.empty();
             metadataCatalogService = metadataCatalogService != null ? metadataCatalogService : Optional.empty();
             userRepository = userRepository != null ? userRepository : Optional.empty();
+            refreshTokenRepository = refreshTokenRepository != null ? refreshTokenRepository : Optional.empty();
+            refreshTokenService = refreshTokenService != null ? refreshTokenService : Optional.empty();
             appClientRepository = appClientRepository != null ? appClientRepository : Optional.empty();
             authService = authService != null ? authService : Optional.empty();
             appClientAuthService = appClientAuthService != null ? appClientAuthService : Optional.empty();
@@ -88,6 +96,8 @@ public final class HouseDbContainer {
             private Supplier<MetadataCatalogRepository> metadataCatalogRepository;
             private Supplier<MetadataCatalogService> metadataCatalogService;
             private Supplier<UserRepository> userRepository;
+            private Supplier<RefreshTokenRepository> refreshTokenRepository;
+            private Supplier<RefreshTokenService> refreshTokenService;
             private Supplier<AppClientRepository> appClientRepository;
             private Supplier<AuthService> authService;
             private Supplier<AppClientAuthService> appClientAuthService;
@@ -148,6 +158,16 @@ public final class HouseDbContainer {
                 return this;
             }
 
+            public Builder refreshTokenRepository(final Supplier<RefreshTokenRepository> value) {
+                refreshTokenRepository = value;
+                return this;
+            }
+
+            public Builder refreshTokenService(final Supplier<RefreshTokenService> value) {
+                refreshTokenService = value;
+                return this;
+            }
+
             public Builder appClientRepository(final Supplier<AppClientRepository> value) {
                 appClientRepository = value;
                 return this;
@@ -174,7 +194,8 @@ public final class HouseDbContainer {
                         Optional.ofNullable(houseLocationSyncRepository), Optional.ofNullable(itemFinderService),
                         Optional.ofNullable(houseManagementRepository), Optional.ofNullable(houseService),
                         Optional.ofNullable(metadataCatalogRepository), Optional.ofNullable(metadataCatalogService),
-                        Optional.ofNullable(userRepository), Optional.ofNullable(appClientRepository),
+                        Optional.ofNullable(userRepository), Optional.ofNullable(refreshTokenRepository),
+                        Optional.ofNullable(refreshTokenService), Optional.ofNullable(appClientRepository),
                         Optional.ofNullable(authService), Optional.ofNullable(appClientAuthService),
                         Optional.ofNullable(passwordHasherPBKDF2));
             }
@@ -194,6 +215,8 @@ public final class HouseDbContainer {
     private final Lazy<MetadataCatalogService> metadataCatalogService;
     private final Lazy<HouseRepositoryImpl> houseRepository;
     private final Lazy<UserRepository> userRepository;
+    private final Lazy<RefreshTokenRepository> refreshTokenRepository;
+    private final Lazy<RefreshTokenService> refreshTokenService;
     private final Lazy<AppClientRepository> appClientRepository;
     private final Lazy<PasswordHasherPBKDF2> passwordHasherPBKDF2;
     private final Lazy<AuthService> authService;
@@ -226,6 +249,10 @@ public final class HouseDbContainer {
                 () -> new MetadataCatalogServiceImpl(metadataCatalogRepository())));
 
         userRepository = new Lazy<>(select(overrides.userRepository(), () -> new UserRepositoryImpl(dataSource())));
+        refreshTokenRepository = new Lazy<>(
+                select(overrides.refreshTokenRepository(), () -> new RefreshTokenRepositoryImpl(dataSource())));
+        refreshTokenService = new Lazy<>(
+                select(overrides.refreshTokenService(), () -> new RefreshTokenServiceImpl(refreshTokenRepository())));
         appClientRepository = new Lazy<>(
                 select(overrides.appClientRepository(), () -> new AppClientRepositoryImpl(dataSource())));
         passwordHasherPBKDF2 = new Lazy<>(select(overrides.passwordHasherPBKDF2(),
@@ -287,6 +314,14 @@ public final class HouseDbContainer {
         return userRepository.get();
     }
 
+    public RefreshTokenRepository refreshTokenRepository() {
+        return refreshTokenRepository.get();
+    }
+
+    public RefreshTokenService refreshTokenService() {
+        return refreshTokenService.get();
+    }
+
     public AppClientRepository appClientRepository() {
         return appClientRepository.get();
     }
@@ -315,6 +350,8 @@ public final class HouseDbContainer {
         metadataCatalogRepository();
         metadataCatalogService();
         userRepository();
+        refreshTokenRepository();
+        refreshTokenService();
         appClientRepository();
         authService();
         appClientAuthService();

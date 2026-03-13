@@ -113,8 +113,8 @@ public final class TokenHandler {
             return true;
         }
 
-        final var token = jwt.mintApp("app:" + result.clientId(), result.clientId(), result.roles(), ttlSeconds);
-        x.json(200, Map.of("token_type", "Bearer", "access_token", token, "expires_in", ttlSeconds, "grant_type",
+        final var token = jwt.mintAppAccess("app:" + result.clientId(), result.clientId(), result.roles(), ttlSeconds);
+        x.json(200, Map.of("token_type", "Bearer", "access_token", token.token(), "expires_in", ttlSeconds, "grant_type",
                         "client_credentials"));
         return true;
     }

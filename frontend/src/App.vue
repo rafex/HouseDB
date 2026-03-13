@@ -1,3 +1,9 @@
+<script setup>
+import SessionRenewalModal from './components/SessionRenewalModal.vue'
+</script>
+
 <template lang="pug">
-RouterView
+.app-root
+  RouterView
+  SessionRenewalModal
 </template>

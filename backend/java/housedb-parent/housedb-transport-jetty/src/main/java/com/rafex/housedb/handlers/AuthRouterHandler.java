@@ -2,8 +2,10 @@ package com.rafex.housedb.handlers;
 
 import com.rafex.housedb.handlers.support.HouseDbErrorMapper;
 import com.rafex.housedb.security.JwtService;
+import com.rafex.housedb.services.RefreshTokenService;
 import com.rafex.housedb.services.AppClientAuthService;
 import com.rafex.housedb.services.AuthService;
+import com.rafex.housedb.repository.UserRepository;
 
 import java.util.List;
 import java.util.Set;
@@ -17,12 +19,15 @@ public final class AuthRouterHandler extends NonBlockingResourceHandler {
 
     private final LoginHandler loginHandler;
     private final TokenHandler tokenHandler;
+    private final RefreshTokenHandler refreshTokenHandler;
 
     public AuthRouterHandler(final JsonCodec jsonCodec, final JwtService jwt, final AuthService authService,
-            final AppClientAuthService appClientAuthService) {
+            final AppClientAuthService appClientAuthService, final RefreshTokenService refreshTokenService,
+            final UserRepository userRepository) {
         super(jsonCodec, new HouseDbErrorMapper());
-        this.loginHandler = new LoginHandler(jsonCodec, jwt, authService);
+        this.loginHandler = new LoginHandler(jsonCodec, jwt, authService, refreshTokenService);
         this.tokenHandler = new TokenHandler(jsonCodec, jwt, appClientAuthService);
+        this.refreshTokenHandler = new RefreshTokenHandler(jsonCodec, jwt, refreshTokenService, userRepository);
     }
 
     @Override
@@ -34,7 +39,8 @@ public final class AuthRouterHandler extends NonBlockingResourceHandler {
     protected List<Route> routes() {
         return List.of(
                 Route.of("/login", Set.of("POST")),
-                Route.of("/token", Set.of("POST")));
+                Route.of("/token", Set.of("POST")),
+                Route.of("/refresh", Set.of("POST")));
     }
 
     @Override
@@ -42,6 +48,7 @@ public final class AuthRouterHandler extends NonBlockingResourceHandler {
         return switch (x.path()) {
             case "/auth/login" -> loginHandler.handle(x);
             case "/auth/token" -> tokenHandler.handle(x);
+            case "/auth/refresh" -> refreshTokenHandler.handle(x);
             default -> false;
         };
     }

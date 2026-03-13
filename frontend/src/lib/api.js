@@ -1,4 +1,4 @@
-const PROD_DEFAULT_BASE_URL = 'http://localhost:8080'
+const PROD_DEFAULT_BASE_URL = 'https://housedb.v1.rafex.cloud'
 
 function getBaseUrl() {
   if (import.meta.env.DEV) {
@@ -95,6 +95,14 @@ export class HouseDbApiClient {
     return this.request('/auth/login', {
       method: 'POST',
       body: payload,
+      auth: false,
+    })
+  }
+
+  refreshSession(refreshToken) {
+    return this.request('/auth/refresh', {
+      method: 'POST',
+      body: refreshToken ? { refreshToken } : undefined,
       auth: false,
     })
   }
@@ -203,8 +211,22 @@ export class HouseDbApiClient {
 
 export function normalizeApiError(error) {
   if (error instanceof HouseDbApiError) {
+    const code = error.data?.code
+    const serverMessage = error.data?.message || error.data?.error
+    let message = serverMessage || `HTTP ${error.status ?? ''}`.trim()
+
+    if (code === 'bad_credentials') {
+      message = 'Usuario o password incorrectos.'
+    } else if (error.status === 401 && serverMessage === 'unauthorized') {
+      message = 'Tu sesion no es valida o ya vencio.'
+    } else if (serverMessage === 'invalid_refresh_token') {
+      message = 'La sesion ya no se puede renovar. Ingresa nuevamente.'
+    } else if (serverMessage === 'database error') {
+      message = 'El backend reporto un error de base de datos durante la autenticacion.'
+    }
+
     return {
-      message: error.message,
+      message,
       status: error.status,
       detail: error.data,
     }

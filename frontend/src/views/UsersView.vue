@@ -34,6 +34,7 @@ const endpointCatalog = [
   'GET /health',
   'GET /hello',
   'POST /auth/login',
+  'POST /auth/refresh',
   'POST /auth/token',
   'GET /items',
   'GET /items/search',

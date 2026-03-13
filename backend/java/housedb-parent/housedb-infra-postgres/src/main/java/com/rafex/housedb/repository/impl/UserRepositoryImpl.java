@@ -63,6 +63,29 @@ public final class UserRepositoryImpl implements UserRepository {
     }
 
     @Override
+    public Optional<UserRow> findByUserId(final UUID userId) throws SQLException {
+        final var sql = """
+                SELECT user_id, username, password_hash, salt, iterations, status, created_at, updated_at
+                FROM users
+                WHERE user_id = ?
+                """;
+
+        try (var c = ds.getConnection(); var ps = c.prepareStatement(sql)) {
+            ps.setObject(1, userId);
+
+            try (var rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    return Optional.empty();
+                }
+
+                return Optional.of(new UserRow(rs.getObject("user_id", UUID.class), rs.getString("username"),
+                        rs.getBytes("password_hash"), rs.getBytes("salt"), rs.getInt("iterations"),
+                        rs.getString("status"), asInstant(rs, "created_at"), asInstant(rs, "updated_at")));
+            }
+        }
+    }
+
+    @Override
     public List<String> findRoleNamesByUserId(final UUID userId) throws SQLException {
         final var sql = """
                 SELECT r.name

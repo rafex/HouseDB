@@ -3,11 +3,13 @@ package com.rafex.housedb.handlers;
 import com.rafex.housedb.handlers.support.EtherJettyErrors;
 import com.rafex.housedb.security.JwtService;
 import com.rafex.housedb.services.AuthService;
+import com.rafex.housedb.services.RefreshTokenService;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 
 import org.eclipse.jetty.io.Content;
 import org.eclipse.jetty.server.Request;
@@ -22,18 +24,26 @@ public final class LoginHandler {
     private final JsonCodec jsonCodec;
     private final JwtService jwt;
     private final AuthService authService;
-    private final long ttlSeconds;
+    private final RefreshTokenService refreshTokenService;
+    private final long accessTtlSeconds;
+    private final long refreshTtlSeconds;
 
-    public LoginHandler(final JsonCodec jsonCodec, final JwtService jwt, final AuthService authService) {
-        this(jsonCodec, jwt, authService, Long.parseLong(System.getenv().getOrDefault("JWT_TTL_SECONDS", "3600")));
+    public LoginHandler(final JsonCodec jsonCodec, final JwtService jwt, final AuthService authService,
+            final RefreshTokenService refreshTokenService) {
+        this(jsonCodec, jwt, authService, refreshTokenService,
+                Long.parseLong(System.getenv().getOrDefault("JWT_ACCESS_TTL_SECONDS",
+                        System.getenv().getOrDefault("JWT_TTL_SECONDS", "900"))),
+                Long.parseLong(System.getenv().getOrDefault("JWT_REFRESH_TTL_SECONDS", "604800")));
     }
 
     public LoginHandler(final JsonCodec jsonCodec, final JwtService jwt, final AuthService authService,
-            final long ttlSeconds) {
+            final RefreshTokenService refreshTokenService, final long accessTtlSeconds, final long refreshTtlSeconds) {
         this.jsonCodec = Objects.requireNonNull(jsonCodec);
         this.jwt = Objects.requireNonNull(jwt);
         this.authService = Objects.requireNonNull(authService);
-        this.ttlSeconds = ttlSeconds;
+        this.refreshTokenService = Objects.requireNonNull(refreshTokenService);
+        this.accessTtlSeconds = accessTtlSeconds;
+        this.refreshTtlSeconds = refreshTtlSeconds;
     }
 
     public boolean handle(final HttpExchange x) throws Exception {
@@ -104,9 +114,18 @@ public final class LoginHandler {
             return true;
         }
 
-        final var token = jwt.mint(result.userId().toString(), result.roles(), ttlSeconds);
+        final UUID tokenFamilyId = UUID.randomUUID();
+        final var accessToken = jwt.mintAccess(result.userId().toString(), result.roles(), accessTtlSeconds);
+        final var refreshToken = jwt.mintRefresh(result.userId().toString(), tokenFamilyId, refreshTtlSeconds);
+        refreshTokenService.issueRefreshToken(result.userId(), tokenFamilyId, refreshToken.jwtId(),
+                refreshToken.expiresAt(), null);
 
-        x.json(200, Map.of("token_type", "Bearer", "access_token", token, "expires_in", ttlSeconds));
+        x.json(200, Map.of(
+                "token_type", "Bearer",
+                "access_token", accessToken.token(),
+                "expires_in", accessTtlSeconds,
+                "refresh_token", refreshToken.token(),
+                "refresh_expires_in", refreshTtlSeconds));
         return true;
     }
 

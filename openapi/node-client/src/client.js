@@ -93,6 +93,14 @@ export class HouseDbClient {
     });
   }
 
+  refreshSession(refreshToken) {
+    return this.request("/auth/refresh", {
+      method: "POST",
+      body: refreshToken ? { refreshToken } : undefined,
+      token: ""
+    });
+  }
+
   clientToken({ clientId, clientSecret, grantType = "client_credentials" } = {}) {
     return this.request("/auth/token", {
       method: "POST",

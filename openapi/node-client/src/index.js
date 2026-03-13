@@ -22,6 +22,7 @@ Comandos:
   hello-name-post [--name NOMBRE]
   login --username USER --password PASS
   login-basic --username USER --password PASS
+  refresh-session --refresh-token TOKEN
   token --client-id ID --client-secret SECRET [--grant-type client_credentials]
   token-basic --client-id ID --client-secret SECRET
   get-item --id UUID
@@ -105,6 +106,10 @@ async function main() {
 
       case "login-basic":
         res = await client.loginWithBasic(argValue("--username"), argValue("--password"));
+        break;
+
+      case "refresh-session":
+        res = await client.refreshSession(argValue("--refresh-token"));
         break;
 
       case "token":

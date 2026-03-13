@@ -13,6 +13,8 @@ public interface UserRepository {
 
     Optional<UserRow> findByUsername(String username) throws SQLException;
 
+    Optional<UserRow> findByUserId(UUID userId) throws SQLException;
+
     List<String> findRoleNamesByUserId(UUID userId) throws SQLException;
 
     Optional<UserWithRoles> findByUsernameWithRoles(String username) throws SQLException;
