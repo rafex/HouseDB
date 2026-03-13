@@ -13,17 +13,18 @@ podAnnotations: {}
 podLabels: {}
 
 podSecurityContext:
-  runAsNonRoot: true
-  runAsUser: 101
-  runAsGroup: 101
-  fsGroup: 101
+  runAsNonRoot: false
   seccompProfile:
     type: RuntimeDefault
 
 securityContext:
   allowPrivilegeEscalation: false
-  readOnlyRootFilesystem: true
+  readOnlyRootFilesystem: false
   capabilities:
+    add:
+      - CHOWN
+      - SETGID
+      - SETUID
     drop:
       - ALL
 
