@@ -220,3 +220,14 @@ jobs:
           echo "Final image URL (primary): $IMAGE_BASE:${{ steps.image_tag.outputs.value }}"
           echo "Final image URL (sha): $IMAGE_BASE:${{ github.sha }}"
           echo "Make the package public in GitHub Packages UI if you want anonymous pulls."
+
+  deploy-after-publish:
+    name: Deploy after publish
+    needs:
+      - build-and-push-backend
+      - build-and-push-frontend
+    if: ${{ github.event_name == 'push' && github.ref_type == 'tag' }}
+    uses: ./.github/workflows/deploy.yml
+    with:
+      version_tag: ${{ github.ref_name }}
+    secrets: inherit
