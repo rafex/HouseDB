@@ -33,7 +33,7 @@ public final class HouseDBServer {
 
     public static void start(final HouseDbContainer container) throws Exception {
         final var jsonCodec = JsonCodecBuilder.create().build();
-        final var jwt = new JwtService(jsonCodec.mapper(), System.getenv().getOrDefault("JWT_ISS", "com.rafex.housedb"),
+        final var jwt = new JwtService(System.getenv().getOrDefault("JWT_ISS", "com.rafex.housedb"),
                 System.getenv().getOrDefault("JWT_AUD", "housedb-backend"),
                 System.getenv().getOrDefault("JWT_SECRET", "CHANGE_ME_NOW_32+chars_secret"));
 
@@ -69,7 +69,9 @@ public final class HouseDBServer {
             if (!result.ok()) {
                 return TokenVerificationResult.failed(result.code());
             }
-            return TokenVerificationResult.ok(result.ctx());
+            return result.claims()
+                    .map(TokenVerificationResult::ok)
+                    .orElseGet(() -> TokenVerificationResult.failed("verify_exception"));
         };
 
         final var authPolicies = List.of(

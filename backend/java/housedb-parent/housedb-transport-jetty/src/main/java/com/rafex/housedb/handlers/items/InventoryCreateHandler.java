@@ -13,16 +13,18 @@ import java.util.logging.Logger;
 import org.eclipse.jetty.server.Request;
 
 import dev.rafex.ether.http.core.HttpExchange;
-import dev.rafex.ether.json.JsonUtils;
+import dev.rafex.ether.json.JsonCodec;
 
 final class InventoryCreateHandler {
 
     private static final Logger LOG = Logger.getLogger(InventoryCreateHandler.class.getName());
 
+    private final JsonCodec jsonCodec;
     private final ItemFinderService service;
     private final KiwiApiClient kiwiApiClient;
 
-    InventoryCreateHandler(final ItemFinderService service, final KiwiApiClient kiwiApiClient) {
+    InventoryCreateHandler(final JsonCodec jsonCodec, final ItemFinderService service, final KiwiApiClient kiwiApiClient) {
+        this.jsonCodec = jsonCodec;
         this.service = service;
         this.kiwiApiClient = kiwiApiClient;
     }
@@ -30,7 +32,7 @@ final class InventoryCreateHandler {
     boolean handle(final HttpExchange x) {
         return EndpointSupport.execute(LOG, x, () -> {
             final Request request = ExchangeAdapters.request(x);
-            final var body = JsonUtils.fromJson(Request.asInputStream(request), CreateInventoryItemRequest.class);
+            final var body = jsonCodec.readValue(Request.asInputStream(request), CreateInventoryItemRequest.class);
             final var userId = AuthzSupport.requireTokenUser(x);
             final var kiwiLocationId = service.findKiwiLocationIdByHouseLocationId(body.houseLocationLeafId());
             if (kiwiLocationId == null) {
@@ -55,7 +57,7 @@ final class InventoryCreateHandler {
                     body.objectCategory(), null, true);
             final var housedbMetadataJson = body.housedbMetadata() == null
                     ? "{}"
-                    : JsonUtils.toJson(body.housedbMetadata());
+                    : jsonCodec.toJson(body.housedbMetadata());
 
             final var result = service.createInventoryItem(userId, objectId, body.nickname(),
                     body.serialNumber(), body.conditionStatus(), housedbMetadataJson, body.houseLocationLeafId(), body.movedBy(),

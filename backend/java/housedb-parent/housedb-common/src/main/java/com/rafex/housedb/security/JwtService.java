@@ -6,41 +6,24 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import dev.rafex.ether.jwt.DefaultTokenIssuer;
 import dev.rafex.ether.jwt.DefaultTokenVerifier;
 import dev.rafex.ether.jwt.JwtConfig;
 import dev.rafex.ether.jwt.KeyProvider;
-import dev.rafex.ether.jwt.TokenClaims;
 import dev.rafex.ether.jwt.TokenIssuer;
 import dev.rafex.ether.jwt.TokenSpec;
 import dev.rafex.ether.jwt.TokenType;
 import dev.rafex.ether.jwt.TokenVerifier;
+import dev.rafex.ether.jwt.VerificationResult;
 
 public final class JwtService {
-
-    public record AuthContext(String sub, long exp, String iss, String aud, List<String> roles, String tokenType,
-            String clientId) {
-    }
-
-    public record VerifyResult(boolean ok, AuthContext ctx, String code) {
-        public static VerifyResult ok(final AuthContext ctx) {
-            return new VerifyResult(true, ctx, null);
-        }
-
-        public static VerifyResult bad(final String code) {
-            return new VerifyResult(false, null, code);
-        }
-    }
 
     private final String iss;
     private final String aud;
     private final TokenIssuer tokenIssuer;
     private final TokenVerifier tokenVerifier;
 
-    public JwtService(final ObjectMapper mapper, final String iss, final String aud, final String secret) {
-        Objects.requireNonNull(mapper, "mapper");
+    public JwtService(final String iss, final String aud, final String secret) {
         this.iss = Objects.requireNonNull(iss, "iss");
         this.aud = Objects.requireNonNull(aud, "aud");
         if (secret == null || secret.length() < 32) {
@@ -88,29 +71,7 @@ public final class JwtService {
         return tokenIssuer.issue(builder.build());
     }
 
-    public VerifyResult verify(final String token, final long nowEpochSeconds) {
-        final var result = tokenVerifier.verify(token, Instant.ofEpochSecond(nowEpochSeconds));
-        if (!result.ok()) {
-            return VerifyResult.bad(result.code());
-        }
-        final var claims = result.claims().orElse(null);
-        if (claims == null) {
-            return VerifyResult.bad("verify_exception");
-        }
-        return VerifyResult.ok(mapAuthContext(claims));
-    }
-
-    private AuthContext mapAuthContext(final TokenClaims claims) {
-        final var tokenType = claims.tokenType() == null ? "user" : claims.tokenType().claimValue();
-        final var audValue = claims.audience().isEmpty() ? null : claims.audience().get(0);
-        final var expiresAt = claims.expiresAt() == null ? 0L : claims.expiresAt().getEpochSecond();
-        return new AuthContext(
-                claims.subject(),
-                expiresAt,
-                claims.issuer(),
-                audValue,
-                claims.roles(),
-                tokenType,
-                claims.clientId());
+    public VerificationResult verify(final String token, final long nowEpochSeconds) {
+        return tokenVerifier.verify(token, Instant.ofEpochSecond(nowEpochSeconds));
     }
 }

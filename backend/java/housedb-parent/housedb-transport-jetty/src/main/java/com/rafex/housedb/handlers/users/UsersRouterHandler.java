@@ -1,5 +1,6 @@
 package com.rafex.housedb.handlers.users;
 
+import com.rafex.housedb.handlers.support.HouseDbErrorMapper;
 import com.rafex.housedb.repository.UserRepository;
 import com.rafex.housedb.security.PasswordHasherPBKDF2;
 
@@ -16,8 +17,8 @@ public final class UsersRouterHandler extends NonBlockingResourceHandler {
     private final CreateUserHandler createUserHandler;
 
     public UsersRouterHandler(final JsonCodec jsonCodec, final UserRepository userRepository, final PasswordHasherPBKDF2 hasher) {
-        super(jsonCodec);
-        createUserHandler = new CreateUserHandler(userRepository, hasher);
+        super(jsonCodec, new HouseDbErrorMapper());
+        createUserHandler = new CreateUserHandler(jsonCodec, userRepository, hasher);
     }
 
     @Override

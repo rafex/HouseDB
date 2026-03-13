@@ -12,16 +12,19 @@ import java.util.logging.Logger;
 import org.eclipse.jetty.server.Request;
 
 import dev.rafex.ether.http.core.HttpExchange;
-import dev.rafex.ether.json.JsonUtils;
+import dev.rafex.ether.json.JsonCodec;
 
 final class CreateHouseLocationHandler {
 
     private static final Logger LOG = Logger.getLogger(CreateHouseLocationHandler.class.getName());
 
+    private final JsonCodec jsonCodec;
     private final KiwiApiClient kiwiApiClient;
     private final ItemFinderService itemService;
 
-    CreateHouseLocationHandler(final KiwiApiClient kiwiApiClient, final ItemFinderService itemService) {
+    CreateHouseLocationHandler(final JsonCodec jsonCodec, final KiwiApiClient kiwiApiClient,
+            final ItemFinderService itemService) {
+        this.jsonCodec = jsonCodec;
         this.kiwiApiClient = kiwiApiClient;
         this.itemService = itemService;
     }
@@ -29,7 +32,7 @@ final class CreateHouseLocationHandler {
     boolean handle(final HttpExchange x, final UUID houseId) {
         return HouseEndpointSupport.execute(LOG, x, () -> {
             final Request request = ExchangeAdapters.request(x);
-            final var body = JsonUtils.fromJson(Request.asInputStream(request), CreateHouseLocationRequest.class);
+            final var body = jsonCodec.readValue(Request.asInputStream(request), CreateHouseLocationRequest.class);
             final UUID kiwiParentLocationId;
             final UUID parentHouseLocationId = body.parentHouseLocationId();
             if (parentHouseLocationId != null) {

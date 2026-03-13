@@ -1,5 +1,6 @@
 package com.rafex.housedb.handlers.items;
 
+import com.rafex.housedb.handlers.support.HouseDbErrorMapper;
 import com.rafex.housedb.kiwi.KiwiApiClient;
 import com.rafex.housedb.services.ItemFinderService;
 
@@ -25,15 +26,15 @@ public final class ItemsRouterHandler extends NonBlockingResourceHandler {
     private final ItemDetailHandler itemDetailHandler;
 
     public ItemsRouterHandler(final JsonCodec jsonCodec, final ItemFinderService service, final KiwiApiClient kiwiApiClient) {
-        super(jsonCodec);
+        super(jsonCodec, new HouseDbErrorMapper());
         listHandler = new InventoryListHandler(service);
         searchHandler = new InventorySearchHandler(service);
         nearbyHandler = new InventoryNearbyHandler(service);
         byLocationHandler = new InventoryByLocationHandler(service);
-        createHandler = new InventoryCreateHandler(service, kiwiApiClient);
-        moveHandler = new InventoryMoveHandler(service);
+        createHandler = new InventoryCreateHandler(jsonCodec, service, kiwiApiClient);
+        moveHandler = new InventoryMoveHandler(jsonCodec, service);
         timelineHandler = new InventoryTimelineHandler(service);
-        favoriteHandler = new InventoryFavoriteHandler(service);
+        favoriteHandler = new InventoryFavoriteHandler(jsonCodec, service);
         itemDetailHandler = new ItemDetailHandler(kiwiApiClient, service);
     }
 

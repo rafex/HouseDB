@@ -1,5 +1,6 @@
 package com.rafex.housedb.handlers.items;
 
+import com.rafex.housedb.handlers.support.EtherJettyErrors;
 import com.rafex.housedb.kiwi.KiwiApiClient;
 import com.rafex.housedb.services.ItemFinderService;
 
@@ -27,7 +28,7 @@ final class ItemDetailHandler {
         try {
             final var inventoryItem = itemService.getInventoryItemDetail(itemId);
             if (inventoryItem == null) {
-                x.json(404, Map.of("error", "not_found", "path", x.path()));
+                EtherJettyErrors.notFound(x);
                 return true;
             }
 
@@ -53,19 +54,19 @@ final class ItemDetailHandler {
             x.json(200, payload);
             return true;
         } catch (final IllegalArgumentException e) {
-            x.json(400, Map.of("error", "bad_request", "message", e.getMessage()));
+            EtherJettyErrors.badRequest(x, e.getMessage());
             return true;
         } catch (final KiwiApiClient.KiwiApiException e) {
             if (e.statusCode() == 404) {
-                x.json(404, Map.of("error", "not_found", "path", x.path()));
+                EtherJettyErrors.notFound(x);
                 return true;
             }
             LOG.log(Level.SEVERE, "Kiwi API error", e);
-            x.json(500, Map.of("error", "internal_server_error", "message", "kiwi api error"));
+            EtherJettyErrors.internalServerError(x, "kiwi api error");
             return true;
         } catch (final Exception e) {
             LOG.log(Level.SEVERE, "Unhandled error", e);
-            x.json(500, Map.of("error", "internal_server_error", "message", "internal error"));
+            EtherJettyErrors.internalServerError(x, "internal error");
             return true;
         }
     }

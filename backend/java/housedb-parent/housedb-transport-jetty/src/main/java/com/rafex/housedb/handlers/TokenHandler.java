@@ -1,15 +1,14 @@
 package com.rafex.housedb.handlers;
 
+import com.rafex.housedb.handlers.support.EtherJettyErrors;
 import com.rafex.housedb.security.JwtService;
 import com.rafex.housedb.services.AppClientAuthService;
 
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
 
-import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.io.Content;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.util.MultiMap;
@@ -18,19 +17,22 @@ import org.eclipse.jetty.util.UrlEncoded;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import dev.rafex.ether.http.core.HttpExchange;
-import dev.rafex.ether.json.JsonUtils;
+import dev.rafex.ether.json.JsonCodec;
 
 public final class TokenHandler {
 
+    private final JsonCodec jsonCodec;
     private final JwtService jwt;
     private final AppClientAuthService authService;
     private final long ttlSeconds;
 
-    public TokenHandler(final JwtService jwt, final AppClientAuthService authService) {
-        this(jwt, authService, Long.parseLong(System.getenv().getOrDefault("JWT_APP_TTL_SECONDS", "1800")));
+    public TokenHandler(final JsonCodec jsonCodec, final JwtService jwt, final AppClientAuthService authService) {
+        this(jsonCodec, jwt, authService, Long.parseLong(System.getenv().getOrDefault("JWT_APP_TTL_SECONDS", "1800")));
     }
 
-    public TokenHandler(final JwtService jwt, final AppClientAuthService authService, final long ttlSeconds) {
+    public TokenHandler(final JsonCodec jsonCodec, final JwtService jwt, final AppClientAuthService authService,
+            final long ttlSeconds) {
+        this.jsonCodec = Objects.requireNonNull(jsonCodec);
         this.jwt = Objects.requireNonNull(jwt);
         this.authService = Objects.requireNonNull(authService);
         this.ttlSeconds = ttlSeconds;
@@ -39,7 +41,7 @@ public final class TokenHandler {
     public boolean handle(final HttpExchange x) throws Exception {
         final Request request = ExchangeAdapters.request(x);
         if (!"POST".equalsIgnoreCase(request.getMethod())) {
-            x.json(HttpStatus.METHOD_NOT_ALLOWED_405, Map.of("error", "method_not_allowed"));
+            x.methodNotAllowed();
             return true;
         }
 
@@ -47,8 +49,7 @@ public final class TokenHandler {
         if (authz != null && authz.regionMatches(true, 0, "Basic ", 0, "Basic ".length())) {
             final var creds = decodeBasic(authz.substring("Basic ".length()).trim());
             if (creds == null) {
-                x.json(HttpStatus.UNAUTHORIZED_401,
-                        Map.of("error", "unauthorized", "code", "invalid_client", "timestamp", Instant.now().toString()));
+                EtherJettyErrors.unauthorized(x, "invalid_client");
                 return true;
             }
             return authenticateAndMint(x, creds.clientId(), creds.clientSecret(), "client_credentials");
@@ -58,14 +59,12 @@ public final class TokenHandler {
         try {
             body = Content.Source.asString(request, StandardCharsets.UTF_8);
         } catch (final Exception e) {
-            x.json(HttpStatus.BAD_REQUEST_400,
-                    Map.of("error", "bad_request", "message", "cannot_read_body", "timestamp", Instant.now().toString()));
+            EtherJettyErrors.badRequest(x, "cannot_read_body");
             return true;
         }
 
         if (body == null || body.isBlank()) {
-            x.json(HttpStatus.BAD_REQUEST_400,
-                    Map.of("error", "bad_request", "message", "missing_body", "timestamp", Instant.now().toString()));
+            EtherJettyErrors.badRequest(x, "missing_body");
             return true;
         }
 
@@ -73,10 +72,9 @@ public final class TokenHandler {
         if (contentType != null && contentType.toLowerCase().contains("application/json")) {
             final JsonNode json;
             try {
-                json = JsonUtils.parseTree(body);
+                json = jsonCodec.readTree(body);
             } catch (final Exception e) {
-                x.json(HttpStatus.BAD_REQUEST_400,
-                        Map.of("error", "bad_request", "message", "invalid_json", "timestamp", Instant.now().toString()));
+                EtherJettyErrors.badRequest(x, "invalid_json");
                 return true;
             }
 
@@ -93,14 +91,12 @@ public final class TokenHandler {
     private boolean authenticateAndMint(final HttpExchange x, final String clientId,
             final String clientSecret, final String grantType) throws Exception {
         if (grantType == null || !"client_credentials".equals(grantType)) {
-            x.json(HttpStatus.BAD_REQUEST_400,
-                    Map.of("error", "bad_request", "message", "unsupported_grant_type", "timestamp", Instant.now().toString()));
+            EtherJettyErrors.badRequest(x, "unsupported_grant_type");
             return true;
         }
 
         if (clientId == null || clientSecret == null) {
-            x.json(HttpStatus.UNAUTHORIZED_401,
-                    Map.of("error", "unauthorized", "code", "invalid_client", "timestamp", Instant.now().toString()));
+            EtherJettyErrors.unauthorized(x, "invalid_client");
             return true;
         }
 
@@ -108,14 +104,11 @@ public final class TokenHandler {
         if (!result.ok()) {
             final var code = result.code() != null ? result.code() : "invalid_client";
             if ("client_disabled".equals(code)) {
-                x.json(HttpStatus.FORBIDDEN_403,
-                        Map.of("error", "forbidden", "code", "client_disabled", "timestamp", Instant.now().toString()));
+                EtherJettyErrors.forbidden(x, "client_disabled");
             } else if ("invalid_client".equals(code)) {
-                x.json(HttpStatus.UNAUTHORIZED_401,
-                        Map.of("error", "unauthorized", "code", "invalid_client", "timestamp", Instant.now().toString()));
+                EtherJettyErrors.unauthorized(x, "invalid_client");
             } else {
-                x.json(HttpStatus.UNAUTHORIZED_401,
-                        Map.of("error", "unauthorized", "code", code));
+                EtherJettyErrors.unauthorized(x, code);
             }
             return true;
         }

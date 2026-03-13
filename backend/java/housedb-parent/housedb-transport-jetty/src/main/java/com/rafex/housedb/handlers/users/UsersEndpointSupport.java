@@ -1,12 +1,13 @@
 package com.rafex.housedb.handlers.users;
 
+import com.rafex.housedb.handlers.support.EtherJettyErrors;
+
 import java.sql.SQLException;
-import java.time.Instant;
-import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import dev.rafex.ether.http.core.HttpExchange;
+import dev.rafex.ether.http.core.HttpError;
 
 final class UsersEndpointSupport {
 
@@ -19,21 +20,18 @@ final class UsersEndpointSupport {
             action.close();
             return true;
         } catch (final SecurityException e) {
-            exchange.json(403, Map.of("error", "forbidden", "code", e.getMessage(), "timestamp", Instant.now().toString()));
+            EtherJettyErrors.error(exchange, new HttpError(403, "forbidden", e.getMessage()));
             return true;
         } catch (final IllegalArgumentException e) {
-            exchange.json(400,
-                    Map.of("error", "bad_request", "message", e.getMessage(), "timestamp", Instant.now().toString()));
+            EtherJettyErrors.error(exchange, new HttpError(400, "bad_request", e.getMessage()));
             return true;
         } catch (final SQLException e) {
             logger.log(Level.SEVERE, "SQL error handling request", e);
-            exchange.json(500, Map.of("error", "internal_server_error", "message", "database error",
-                    "timestamp", Instant.now().toString()));
+            EtherJettyErrors.internalServerError(exchange, "database error");
             return true;
         } catch (final Exception e) {
             logger.log(Level.SEVERE, "Unhandled error", e);
-            exchange.json(500, Map.of("error", "internal_server_error", "message", "internal error",
-                    "timestamp", Instant.now().toString()));
+            EtherJettyErrors.internalServerError(exchange, "internal error");
             return true;
         }
     }

@@ -1,5 +1,6 @@
 package com.rafex.housedb.handlers;
 
+import com.rafex.housedb.handlers.support.HouseDbErrorMapper;
 import com.rafex.housedb.security.JwtService;
 import com.rafex.housedb.services.AppClientAuthService;
 import com.rafex.housedb.services.AuthService;
@@ -19,9 +20,9 @@ public final class AuthRouterHandler extends NonBlockingResourceHandler {
 
     public AuthRouterHandler(final JsonCodec jsonCodec, final JwtService jwt, final AuthService authService,
             final AppClientAuthService appClientAuthService) {
-        super(jsonCodec);
-        this.loginHandler = new LoginHandler(jwt, authService);
-        this.tokenHandler = new TokenHandler(jwt, appClientAuthService);
+        super(jsonCodec, new HouseDbErrorMapper());
+        this.loginHandler = new LoginHandler(jsonCodec, jwt, authService);
+        this.tokenHandler = new TokenHandler(jsonCodec, jwt, appClientAuthService);
     }
 
     @Override

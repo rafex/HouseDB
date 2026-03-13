@@ -16,12 +16,14 @@ import dev.rafex.ether.http.core.HttpExchange;
 import dev.rafex.ether.http.core.Route;
 import dev.rafex.ether.http.jetty12.NonBlockingResourceHandler;
 import dev.rafex.ether.json.JsonCodec;
-import dev.rafex.ether.json.JsonUtils;
 
 public final class HelloHandler extends NonBlockingResourceHandler {
 
+    private final JsonCodec jsonCodec;
+
     public HelloHandler(final JsonCodec jsonCodec) {
         super(jsonCodec);
+        this.jsonCodec = jsonCodec;
     }
 
     @Override
@@ -71,7 +73,7 @@ public final class HelloHandler extends NonBlockingResourceHandler {
         }
 
         try {
-            final var json = JsonUtils.parseTree(body);
+            final var json = jsonCodec.readTree(body);
             final var node = json != null ? json.get("name") : null;
             final var bodyName = node != null && node.isTextual() ? normalize(node.asText()) : null;
             x.json(200, responseBody(bodyName != null ? bodyName : queryName));

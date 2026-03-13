@@ -10,22 +10,24 @@ import java.util.logging.Logger;
 import org.eclipse.jetty.server.Request;
 
 import dev.rafex.ether.http.core.HttpExchange;
-import dev.rafex.ether.json.JsonUtils;
+import dev.rafex.ether.json.JsonCodec;
 
 final class CreateHouseHandler {
 
     private static final Logger LOG = Logger.getLogger(CreateHouseHandler.class.getName());
 
+    private final JsonCodec jsonCodec;
     private final HouseService service;
 
-    CreateHouseHandler(final HouseService service) {
+    CreateHouseHandler(final JsonCodec jsonCodec, final HouseService service) {
+        this.jsonCodec = jsonCodec;
         this.service = service;
     }
 
     boolean handle(final HttpExchange x) {
         return HouseEndpointSupport.execute(LOG, x, () -> {
             final Request request = ExchangeAdapters.request(x);
-            final var body = JsonUtils.fromJson(Request.asInputStream(request), CreateHouseRequest.class);
+            final var body = jsonCodec.readValue(Request.asInputStream(request), CreateHouseRequest.class);
             final var ownerUserId = AuthzSupport.requireTokenUser(x);
             final var result = service.createHouse(ownerUserId, body.name(), body.description(), body.street(),
                     body.numberExt(), body.numberInt(), body.neighborhood(), body.city(), body.state(),

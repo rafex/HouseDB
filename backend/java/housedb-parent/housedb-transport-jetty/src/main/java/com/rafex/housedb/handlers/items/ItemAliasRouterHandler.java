@@ -1,5 +1,6 @@
 package com.rafex.housedb.handlers.items;
 
+import com.rafex.housedb.handlers.support.HouseDbErrorMapper;
 import com.rafex.housedb.kiwi.KiwiApiClient;
 import com.rafex.housedb.services.ItemFinderService;
 
@@ -18,7 +19,7 @@ public final class ItemAliasRouterHandler extends NonBlockingResourceHandler {
 
     public ItemAliasRouterHandler(final JsonCodec jsonCodec, final KiwiApiClient kiwiApiClient,
             final ItemFinderService itemFinderService) {
-        super(jsonCodec);
+        super(jsonCodec, new HouseDbErrorMapper());
         itemDetailHandler = new ItemDetailHandler(kiwiApiClient, itemFinderService);
     }
 

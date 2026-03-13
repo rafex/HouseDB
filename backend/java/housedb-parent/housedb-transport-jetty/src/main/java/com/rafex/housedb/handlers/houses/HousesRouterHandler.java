@@ -1,5 +1,6 @@
 package com.rafex.housedb.handlers.houses;
 
+import com.rafex.housedb.handlers.support.HouseDbErrorMapper;
 import com.rafex.housedb.kiwi.KiwiApiClient;
 import com.rafex.housedb.services.HouseService;
 import com.rafex.housedb.services.ItemFinderService;
@@ -24,13 +25,13 @@ public final class HousesRouterHandler extends NonBlockingResourceHandler {
 
     public HousesRouterHandler(final JsonCodec jsonCodec, final HouseService houseService, final ItemFinderService itemService,
             final KiwiApiClient kiwiApiClient) {
-        super(jsonCodec);
-        createHouseHandler = new CreateHouseHandler(houseService);
-        upsertHouseMemberHandler = new UpsertHouseMemberHandler(houseService);
+        super(jsonCodec, new HouseDbErrorMapper());
+        createHouseHandler = new CreateHouseHandler(jsonCodec, houseService);
+        upsertHouseMemberHandler = new UpsertHouseMemberHandler(jsonCodec, houseService);
         listHousesHandler = new ListHousesHandler(houseService);
         listHouseIdsHandler = new ListHouseIdsHandler(houseService);
         listHouseMembersHandler = new ListHouseMembersHandler(houseService);
-        createHouseLocationHandler = new CreateHouseLocationHandler(kiwiApiClient, itemService);
+        createHouseLocationHandler = new CreateHouseLocationHandler(jsonCodec, kiwiApiClient, itemService);
     }
 
     @Override

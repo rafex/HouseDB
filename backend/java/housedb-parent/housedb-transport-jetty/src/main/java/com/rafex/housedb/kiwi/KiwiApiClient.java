@@ -10,13 +10,15 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.logging.Logger;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
-import dev.rafex.ether.json.JacksonJsonCodec;
+import dev.rafex.ether.json.JsonCodec;
 import dev.rafex.ether.json.JsonCodecBuilder;
 
 public final class KiwiApiClient {
@@ -41,7 +43,7 @@ public final class KiwiApiClient {
 
     private final HttpClient httpClient;
     private final String baseUrl;
-    private final JacksonJsonCodec jsonCodec;
+    private final JsonCodec jsonCodec;
     private volatile String cachedBearerToken;
     private volatile Instant cachedBearerTokenExpiresAt;
 
@@ -51,7 +53,7 @@ public final class KiwiApiClient {
                 JsonCodecBuilder.create().build());
     }
 
-    public KiwiApiClient(final JacksonJsonCodec jsonCodec) {
+    public KiwiApiClient(final JsonCodec jsonCodec) {
         this(HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build(),
                 System.getenv().getOrDefault("KIWI_API_BASE_URL", "https://kiwi.v1.rafex.cloud"),
                 jsonCodec);
@@ -61,7 +63,7 @@ public final class KiwiApiClient {
         this(httpClient, baseUrl, JsonCodecBuilder.create().build());
     }
 
-    KiwiApiClient(final HttpClient httpClient, final String baseUrl, final JacksonJsonCodec jsonCodec) {
+    KiwiApiClient(final HttpClient httpClient, final String baseUrl, final JsonCodec jsonCodec) {
         this.httpClient = Objects.requireNonNull(httpClient, "httpClient");
         this.baseUrl = Objects.requireNonNull(baseUrl, "baseUrl");
         this.jsonCodec = Objects.requireNonNull(jsonCodec, "jsonCodec");
@@ -75,11 +77,12 @@ public final class KiwiApiClient {
         final var token = resolveBearerToken();
 
         final var endpoint = baseUrl.endsWith("/") ? baseUrl + "locations" : baseUrl + "/locations";
-        final var json = jsonCodec.mapper().createObjectNode().put("name", name);
+        final var payload = new LinkedHashMap<String, Object>();
+        payload.put("name", name);
         if (parentLocationId != null) {
-            json.put("parentLocationId", parentLocationId.toString());
+            payload.put("parentLocationId", parentLocationId.toString());
         }
-        final var body = jsonCodec.toJson(json);
+        final var body = jsonCodec.toJson(payload);
 
         final var request = HttpRequest.newBuilder().uri(URI.create(endpoint)).timeout(Duration.ofSeconds(10))
                 .header("Authorization", "Bearer " + token).header("Content-Type", "application/json")
@@ -130,13 +133,13 @@ public final class KiwiApiClient {
         final var token = resolveBearerToken();
 
         final var endpoint = baseUrl.endsWith("/") ? baseUrl + "objects" : baseUrl + "/objects";
-        final var json = jsonCodec.mapper().createObjectNode();
-        json.put("name", name);
+        final var payload = new LinkedHashMap<String, Object>();
+        payload.put("name", name);
         if (description != null && !description.isBlank()) {
-            json.put("description", description);
+            payload.put("description", description);
         }
-        json.put("type", type == null || type.isBlank() ? "EQUIPMENT" : type.trim());
-        json.put("locationId", locationId.toString());
+        payload.put("type", type == null || type.isBlank() ? "EQUIPMENT" : type.trim());
+        payload.put("locationId", locationId.toString());
 
         if (tags != null && !tags.isEmpty()) {
             final var cleanTags = new ArrayList<String>();
@@ -150,15 +153,15 @@ public final class KiwiApiClient {
                 }
             }
             if (!cleanTags.isEmpty()) {
-                json.putPOJO("tags", cleanTags);
+                payload.put("tags", cleanTags);
             }
         }
 
         if (metadata != null) {
-            json.set("metadata", jsonCodec.valueToTree(metadata));
+            payload.put("metadata", metadata);
         }
 
-        final var body = jsonCodec.toJson(json);
+        final var body = jsonCodec.toJson(payload);
         final var request = HttpRequest.newBuilder().uri(URI.create(endpoint)).timeout(Duration.ofSeconds(10))
                 .header("Authorization", "Bearer " + token).header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(body)).build();
@@ -230,8 +233,7 @@ public final class KiwiApiClient {
 
     private String loginAdmin(final String username, final String password) throws IOException, InterruptedException {
         final var endpoint = baseUrl.endsWith("/") ? baseUrl + "auth/login" : baseUrl + "/auth/login";
-        final var body = jsonCodec.toJson(
-                jsonCodec.mapper().createObjectNode().put("username", username).put("password", password));
+        final var body = jsonCodec.toJson(Map.of("username", username, "password", password));
 
         final var request = HttpRequest.newBuilder().uri(URI.create(endpoint)).timeout(Duration.ofSeconds(10))
                 .header("Content-Type", "application/json")
@@ -248,11 +250,10 @@ public final class KiwiApiClient {
     private TokenData requestClientCredentialsToken(final String clientId, final String clientSecret)
             throws IOException, InterruptedException {
         final var endpoint = baseUrl.endsWith("/") ? baseUrl + "auth/token" : baseUrl + "/auth/token";
-        final var body = jsonCodec.toJson(
-                jsonCodec.mapper().createObjectNode()
-                        .put("client_id", clientId)
-                        .put("client_secret", clientSecret)
-                        .put("grant_type", "client_credentials"));
+        final var body = jsonCodec.toJson(Map.of(
+                "client_id", clientId,
+                "client_secret", clientSecret,
+                "grant_type", "client_credentials"));
 
         final var request = HttpRequest.newBuilder().uri(URI.create(endpoint)).timeout(Duration.ofSeconds(10))
                 .header("Content-Type", "application/json")
@@ -272,22 +273,23 @@ public final class KiwiApiClient {
     private void createAppClient(final String adminToken, final String clientId, final String clientSecret,
             final String name, final String csvRoles) throws IOException, InterruptedException {
         final var endpoint = baseUrl.endsWith("/") ? baseUrl + "admin/app-clients" : baseUrl + "/admin/app-clients";
-        final var json = jsonCodec.mapper().createObjectNode();
-        json.put("client_id", clientId);
-        json.put("client_secret", clientSecret);
-        json.put("name", name);
-        final var rolesNode = json.putArray("roles");
+        final var roles = new ArrayList<String>();
         for (final var raw : csvRoles.split(",")) {
             final var role = raw == null ? "" : raw.trim();
             if (!role.isBlank()) {
-                rolesNode.add(role);
+                roles.add(role);
             }
         }
+        final var payload = new LinkedHashMap<String, Object>();
+        payload.put("client_id", clientId);
+        payload.put("client_secret", clientSecret);
+        payload.put("name", name);
+        payload.put("roles", List.copyOf(roles));
 
         final var request = HttpRequest.newBuilder().uri(URI.create(endpoint)).timeout(Duration.ofSeconds(10))
                 .header("Authorization", "Bearer " + adminToken)
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(jsonCodec.toJson(json)))
+                .POST(HttpRequest.BodyPublishers.ofString(jsonCodec.toJson(payload)))
                 .build();
 
         final var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());

@@ -14,18 +14,20 @@ import java.util.logging.Logger;
 import org.eclipse.jetty.server.Request;
 
 import dev.rafex.ether.http.core.HttpExchange;
-import dev.rafex.ether.json.JsonUtils;
+import dev.rafex.ether.json.JsonCodec;
 
 final class CreateUserHandler {
 
     private static final Logger LOG = Logger.getLogger(CreateUserHandler.class.getName());
 
+    private final JsonCodec jsonCodec;
     private final UserRepository userRepository;
     private final PasswordHasherPBKDF2 hasher;
     private final int saltBytes;
     private final int pbkdf2Iterations;
 
-    CreateUserHandler(final UserRepository userRepository, final PasswordHasherPBKDF2 hasher) {
+    CreateUserHandler(final JsonCodec jsonCodec, final UserRepository userRepository, final PasswordHasherPBKDF2 hasher) {
+        this.jsonCodec = jsonCodec;
         this.userRepository = userRepository;
         this.hasher = hasher;
         saltBytes = Math.max(16, parseIntEnv("AUTH_SALT_BYTES", 16));
@@ -37,7 +39,7 @@ final class CreateUserHandler {
             AuthzSupport.requireAppOrAdmin(x);
 
             final Request request = ExchangeAdapters.request(x);
-            final var body = JsonUtils.fromJson(Request.asInputStream(request), CreateUserRequest.class);
+            final var body = jsonCodec.readValue(Request.asInputStream(request), CreateUserRequest.class);
             final var username = requireText(body.username(), "username");
             final var password = requireText(body.password(), "password");
             final var userId = body.userId() != null ? body.userId() : UUID.randomUUID();

@@ -1,7 +1,5 @@
 package com.rafex.housedb.handlers;
 
-import com.rafex.housedb.security.JwtService;
-
 import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
@@ -10,6 +8,8 @@ import org.eclipse.jetty.server.Request;
 
 import dev.rafex.ether.http.core.HttpExchange;
 import dev.rafex.ether.http.jetty12.JettyAuthHandler;
+import dev.rafex.ether.jwt.TokenClaims;
+import dev.rafex.ether.jwt.TokenType;
 
 public final class AuthzSupport {
 
@@ -29,7 +29,7 @@ public final class AuthzSupport {
 
         final UUID tokenUserId;
         try {
-            tokenUserId = UUID.fromString(auth.sub());
+            tokenUserId = UUID.fromString(auth.subject());
         } catch (final IllegalArgumentException e) {
             throw new SecurityException("token subject is not a valid user id");
         }
@@ -57,7 +57,7 @@ public final class AuthzSupport {
         }
 
         try {
-            return UUID.fromString(auth.sub());
+            return UUID.fromString(auth.subject());
         } catch (final IllegalArgumentException e) {
             throw new SecurityException("token subject is not a valid user id");
         }
@@ -74,7 +74,7 @@ public final class AuthzSupport {
             throw new SecurityException("forbidden: user token required");
         }
         try {
-            return UUID.fromString(auth.sub());
+            return UUID.fromString(auth.subject());
         } catch (final IllegalArgumentException e) {
             throw new SecurityException("token subject is not a valid user id");
         }
@@ -97,19 +97,19 @@ public final class AuthzSupport {
         requireAppOrAdmin(ExchangeAdapters.request(exchange));
     }
 
-    private static JwtService.AuthContext requireAuthContext(final Request request) {
+    private static TokenClaims requireAuthContext(final Request request) {
         final var auth = request.getAttribute(JettyAuthHandler.REQ_ATTR_AUTH);
-        if (auth instanceof JwtService.AuthContext ctx) {
+        if (auth instanceof TokenClaims ctx) {
             return ctx;
         }
         throw new SecurityException("missing authentication context");
     }
 
-    private static boolean isAppToken(final JwtService.AuthContext auth) {
-        return "app".equalsIgnoreCase(auth.tokenType());
+    private static boolean isAppToken(final TokenClaims auth) {
+        return auth.tokenType() == TokenType.APP;
     }
 
-    private static boolean isAdmin(final JwtService.AuthContext auth) {
+    private static boolean isAdmin(final TokenClaims auth) {
         return auth.roles().stream()
                 .filter(Objects::nonNull)
                 .map(role -> role.toUpperCase(Locale.ROOT))
