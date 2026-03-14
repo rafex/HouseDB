@@ -3,7 +3,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import PaginationControls from '../components/PaginationControls.vue'
-import { normalizeApiError } from '../lib/api'
+import { createPaginationState, normalizeApiError, paginationFromResponse } from '../lib/api'
 import { useCatalogStore } from '../stores/catalogs'
 import { useSessionStore } from '../stores/session'
 
@@ -41,8 +41,8 @@ const selectedItem = ref(null)
 const selectedItemTimeline = ref([])
 const moveLocations = ref([])
 
-const searchPager = reactive({ limit: PAGE_SIZE, offset: 0 })
-const timelinePager = reactive({ limit: PAGE_SIZE, offset: 0 })
+const searchPager = reactive(createPaginationState(PAGE_SIZE))
+const timelinePager = reactive(createPaginationState(PAGE_SIZE))
 
 const moveForm = reactive({
   houseId: '',
@@ -104,6 +104,7 @@ async function runSearch() {
       offset: searchPager.offset,
     })
     results.value = response.items ?? []
+    Object.assign(searchPager, paginationFromResponse(response, searchPager))
   } catch (error) {
     feedback.search = normalizeApiError(error).message
   } finally {
@@ -130,6 +131,7 @@ async function loadItemDetail(inventoryItemId) {
 
     selectedItem.value = detail
     selectedItemTimeline.value = timeline.events ?? []
+    Object.assign(timelinePager, paginationFromResponse(timeline, timelinePager))
     moveForm.houseId = detail.inventoryItem.houseId || ''
     await loadMoveLocations()
 
@@ -277,10 +279,12 @@ section.page-section
       p.muted-copy(v-else-if="loading.search") Buscando objetos...
       p.muted-copy(v-else) No hay resultados con los filtros actuales.
       PaginationControls(
-        :count="results.length"
+        :count="searchPager.returned"
         :limit="searchPager.limit"
         :offset="searchPager.offset"
-        :hasMore="results.length === searchPager.limit"
+        :hasMore="searchPager.hasMore"
+        :previousOffset="searchPager.previousOffset"
+        :nextOffset="searchPager.nextOffset"
         :loading="loading.search"
         @change="searchPager.offset = $event"
       )
@@ -348,10 +352,12 @@ section.page-section
                 td {{ event.movementReason || 'Sin motivo' }}
           p.muted-copy(v-else) Este objeto aun no tiene historial visible.
           PaginationControls(
-            :count="selectedItemTimeline.length"
+            :count="timelinePager.returned"
             :limit="timelinePager.limit"
             :offset="timelinePager.offset"
-            :hasMore="selectedItemTimeline.length === timelinePager.limit"
+            :hasMore="timelinePager.hasMore"
+            :previousOffset="timelinePager.previousOffset"
+            :nextOffset="timelinePager.nextOffset"
             :loading="loading.detail"
             @change="timelinePager.offset = $event"
           )

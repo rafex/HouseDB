@@ -3,7 +3,8 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import DetailModal from '../components/DetailModal.vue'
-import { normalizeApiError } from '../lib/api'
+import PaginationControls from '../components/PaginationControls.vue'
+import { createPaginationState, normalizeApiError, paginationFromResponse } from '../lib/api'
 import { useCatalogStore } from '../stores/catalogs'
 import { useSessionStore } from '../stores/session'
 
@@ -11,6 +12,7 @@ const route = useRoute()
 const router = useRouter()
 const { api, isAuthenticated } = useSessionStore()
 const { houseOptions, getHouseById, loadHousesCatalog } = useCatalogStore()
+const PAGE_SIZE = 16
 
 const loading = reactive({
   houses: false,
@@ -29,6 +31,7 @@ const filters = reactive({
 
 const locations = ref([])
 const selectedLocation = ref(null)
+const pager = reactive(createPaginationState(PAGE_SIZE))
 
 const filteredLocations = computed(() => {
   const query = filters.q.trim().toLowerCase()
@@ -86,10 +89,11 @@ async function loadLocations() {
 
   try {
     const response = await api.listHouseLocations(filters.houseId, {
-      limit: 500,
-      offset: 0,
+      limit: pager.limit,
+      offset: pager.offset,
     })
     locations.value = response.locations ?? []
+    Object.assign(pager, paginationFromResponse(response, pager))
     syncQuery()
   } catch (error) {
     feedback.locations = normalizeApiError(error).message
@@ -119,9 +123,16 @@ watch(
     }
 
     selectedLocation.value = null
+    pager.offset = 0
     await loadLocations()
   },
 )
+
+watch(() => pager.offset, () => {
+  if (filters.houseId) {
+    loadLocations()
+  }
+})
 </script>
 
 <template lang="pug">
@@ -157,7 +168,7 @@ section.page-section
     .table-card
       .table-card__header
         h4.table-card__title Resultado
-        p.muted-copy {{ loading.locations ? 'Consultando...' : `${filteredLocations.length} locaciones` }}
+        p.muted-copy {{ loading.locations ? 'Consultando...' : `${pager.returned} locaciones visibles` }}
       table.table-grid(v-if="filteredLocations.length > 0")
         thead
           tr
@@ -178,6 +189,16 @@ section.page-section
               button.circle-button.circle-button--info(type="button" @click="openLocation(location)") i
       p.empty-copy(v-else-if="loading.locations || loading.houses") Cargando locaciones...
       p.empty-copy(v-else) Selecciona una casa y agrega locaciones para ver resultados aqui.
+      PaginationControls(
+        :count="pager.returned"
+        :limit="pager.limit"
+        :offset="pager.offset"
+        :hasMore="pager.hasMore"
+        :previousOffset="pager.previousOffset"
+        :nextOffset="pager.nextOffset"
+        :loading="loading.locations"
+        @change="pager.offset = $event"
+      )
 
   DetailModal(v-if="selectedLocation" :title="selectedLocation.name || 'Locacion'" @close="closeDetail")
     dl.detail-list

@@ -18,6 +18,14 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  previousOffset: {
+    type: Number,
+    default: null,
+  },
+  nextOffset: {
+    type: Number,
+    default: null,
+  },
   loading: {
     type: Boolean,
     default: false,
@@ -29,9 +37,19 @@ const emit = defineEmits(['change'])
 const currentPage = computed(() => Math.floor(props.offset / props.limit) + 1)
 const startRow = computed(() => (props.count === 0 ? 0 : props.offset + 1))
 const endRow = computed(() => props.offset + props.count)
+const canGoPrevious = computed(() => props.previousOffset !== null || props.offset > 0)
+const canGoNext = computed(() => props.nextOffset !== null || props.hasMore)
 
 function goTo(offset) {
   emit('change', Math.max(0, offset))
+}
+
+function goPrevious() {
+  goTo(props.previousOffset ?? (props.offset - props.limit))
+}
+
+function goNext() {
+  goTo(props.nextOffset ?? (props.offset + props.limit))
 }
 </script>
 
@@ -43,13 +61,13 @@ function goTo(offset) {
   .pagination-controls__actions
     button.ghost-button(
       type="button"
-      @click="goTo(offset - limit)"
-      :disabled="loading || offset <= 0"
+      @click="goPrevious"
+      :disabled="loading || !canGoPrevious"
     ) Anterior
     span.pagination-controls__page Pagina {{ currentPage }}
     button.ghost-button(
       type="button"
-      @click="goTo(offset + limit)"
-      :disabled="loading || !hasMore"
+      @click="goNext"
+      :disabled="loading || !canGoNext"
     ) Siguiente
 </template>

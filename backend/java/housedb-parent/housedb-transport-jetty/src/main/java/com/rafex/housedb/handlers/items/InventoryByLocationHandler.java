@@ -2,9 +2,9 @@ package com.rafex.housedb.handlers.items;
 
 import com.rafex.housedb.handlers.AuthzSupport;
 import com.rafex.housedb.handlers.ExchangeAdapters;
+import com.rafex.housedb.handlers.support.PaginationSupport;
 import com.rafex.housedb.services.ItemFinderService;
 
-import java.util.Map;
 import java.util.logging.Logger;
 
 import dev.rafex.ether.http.core.HttpExchange;
@@ -28,10 +28,11 @@ final class InventoryByLocationHandler {
             final Boolean includeDescendants = ItemRequestParsers.parseOptionalBoolean(query, "includeDescendants");
             final Integer limit = ItemRequestParsers.parseOptionalInt(query, "limit");
             final Integer offset = ItemRequestParsers.parseOptionalInt(query, "offset");
+            final var page = PaginationSupport.request(limit, offset, 200, 200);
 
             final var items = service.listInventoryByLocation(userId, houseId, houseLocationId, includeDescendants,
-                    limit, offset);
-            x.json(200, Map.of("items", items, "count", items.size()));
+                    page.fetchLimit(), page.offset());
+            x.json(200, PaginationSupport.response("items", items, page));
         });
     }
 }

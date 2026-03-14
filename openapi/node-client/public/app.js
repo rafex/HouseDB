@@ -2,6 +2,7 @@ const state = {
   spec: null,
   operations: [],
   entities: [],
+  collapsedEntities: {},
   selected: null
 };
 
@@ -144,10 +145,24 @@ function renderEndpoints() {
     const entityBlock = document.createElement("section");
     entityBlock.className = "entity-group";
 
-    const entityTitle = document.createElement("h3");
-    entityTitle.className = "entity-group__title";
-    entityTitle.textContent = entity.label;
-    entityBlock.appendChild(entityTitle);
+    const entityToggle = document.createElement("button");
+    entityToggle.type = "button";
+    entityToggle.className = `entity-group__toggle${state.collapsedEntities[entity.key] ? "" : " is-open"}`;
+    entityToggle.innerHTML = `
+      <span class="entity-group__caret">${state.collapsedEntities[entity.key] ? "▸" : "▾"}</span>
+      <span class="entity-group__label">${entity.label}</span>
+      <span class="entity-group__count">${visiblePaths.length}</span>
+    `;
+    entityToggle.addEventListener("click", () => {
+      state.collapsedEntities[entity.key] = !state.collapsedEntities[entity.key];
+      renderEndpoints();
+    });
+    entityBlock.appendChild(entityToggle);
+
+    if (state.collapsedEntities[entity.key]) {
+      el.endpoints.appendChild(entityBlock);
+      return;
+    }
 
     visiblePaths.forEach((pathGroup) => {
       const pathBlock = document.createElement("article");
@@ -420,6 +435,7 @@ async function bootstrap() {
 
   state.operations = ops.sort((a, b) => `${a.path}${a.method}`.localeCompare(`${b.path}${b.method}`));
   state.entities = groupOperationsByEntity(state.operations);
+  initializeCollapsedEntities(state.entities);
   renderEndpoints();
 }
 
@@ -467,6 +483,16 @@ function groupOperationsByEntity(operations) {
         .sort((a, b) => a.path.localeCompare(b.path))
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function initializeCollapsedEntities(entities) {
+  const next = { ...state.collapsedEntities };
+  entities.forEach((entity) => {
+    if (next[entity.key] === undefined) {
+      next[entity.key] = false;
+    }
+  });
+  state.collapsedEntities = next;
 }
 
 el.sendBtn.addEventListener("click", sendRequest);

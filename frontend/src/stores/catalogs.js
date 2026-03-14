@@ -1,6 +1,6 @@
 import { computed, reactive } from 'vue'
 
-import { normalizeApiError } from '../lib/api'
+import { normalizeApiError, paginationFromResponse } from '../lib/api'
 import { useSessionStore } from './session'
 
 const state = reactive({
@@ -45,8 +45,26 @@ export function useCatalogStore() {
     state.housesError = ''
 
     try {
-      const response = await api.listHouses({ limit: 100 })
-      state.houses = response.houses ?? []
+      const houses = []
+      let offset = 0
+      let hasMore = true
+
+      while (hasMore) {
+        const response = await api.listHouses({ limit: 100, offset })
+        houses.push(...(response.houses ?? []))
+
+        const pagination = paginationFromResponse(response, {
+          limit: 100,
+          offset,
+          returned: response.houses?.length ?? 0,
+          hasMore: false,
+        })
+
+        hasMore = pagination.hasMore
+        offset = pagination.nextOffset ?? 0
+      }
+
+      state.houses = houses
       state.loadedOnce = true
       return state.houses
     } catch (error) {

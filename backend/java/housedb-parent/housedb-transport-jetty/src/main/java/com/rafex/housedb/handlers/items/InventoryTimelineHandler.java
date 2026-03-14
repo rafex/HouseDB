@@ -1,9 +1,9 @@
 package com.rafex.housedb.handlers.items;
 
 import com.rafex.housedb.handlers.ExchangeAdapters;
+import com.rafex.housedb.handlers.support.PaginationSupport;
 import com.rafex.housedb.services.ItemFinderService;
 
-import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
 
@@ -24,9 +24,10 @@ final class InventoryTimelineHandler {
             final var query = ItemRequestParsers.parseQuery(ExchangeAdapters.rawQuery(x));
             final Integer limit = ItemRequestParsers.parseOptionalInt(query, "limit");
             final Integer offset = ItemRequestParsers.parseOptionalInt(query, "offset");
+            final var page = PaginationSupport.request(limit, offset, 100, 200);
 
-            final var events = service.inventoryItemTimeline(inventoryItemId, limit, offset);
-            x.json(200, Map.of("events", events, "count", events.size()));
+            final var events = service.inventoryItemTimeline(inventoryItemId, page.fetchLimit(), page.offset());
+            x.json(200, PaginationSupport.response("events", events, page));
         });
     }
 }

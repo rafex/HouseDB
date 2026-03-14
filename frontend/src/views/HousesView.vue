@@ -2,7 +2,7 @@
 import { onMounted, reactive, ref, watch } from 'vue'
 
 import PaginationControls from '../components/PaginationControls.vue'
-import { normalizeApiError } from '../lib/api'
+import { createPaginationState, normalizeApiError, paginationFromResponse } from '../lib/api'
 import { useCatalogStore } from '../stores/catalogs'
 import { useSessionStore } from '../stores/session'
 
@@ -28,8 +28,8 @@ const locations = ref([])
 const selectedHouseId = ref('')
 const activeHouse = ref(null)
 
-const housesPager = reactive({ limit: 10, offset: 0 })
-const locationsPager = reactive({ limit: 16, offset: 0 })
+const housesPager = reactive(createPaginationState(10))
+const locationsPager = reactive(createPaginationState(16))
 
 const houseForm = reactive({
   name: '',
@@ -66,6 +66,7 @@ async function loadHouses() {
       offset: housesPager.offset,
     })
     houses.value = response.houses ?? []
+    Object.assign(housesPager, paginationFromResponse(response, housesPager))
 
     if (!selectedHouseId.value && houses.value.length > 0) {
       selectedHouseId.value = houses.value[0].houseId
@@ -95,6 +96,7 @@ async function loadLocations() {
       offset: locationsPager.offset,
     })
     locations.value = response.locations ?? []
+    Object.assign(locationsPager, paginationFromResponse(response, locationsPager))
   } catch (error) {
     feedback.locations = normalizeApiError(error).message
   } finally {
@@ -202,10 +204,12 @@ section.page-section
             span {{ house.city || 'Sin ciudad' }} · {{ house.role }}
         p.form-feedback.form-feedback--error(v-if="feedback.houses") {{ feedback.houses }}
         PaginationControls(
-          :count="houses.length"
+          :count="housesPager.returned"
           :limit="housesPager.limit"
           :offset="housesPager.offset"
-          :hasMore="houses.length === housesPager.limit"
+          :hasMore="housesPager.hasMore"
+          :previousOffset="housesPager.previousOffset"
+          :nextOffset="housesPager.nextOffset"
           :loading="loading.houses"
           @change="housesPager.offset = $event"
         )
@@ -246,10 +250,12 @@ section.page-section
       p.muted-copy(v-else) Aun no hay locaciones registradas.
       p.form-feedback.form-feedback--error(v-if="feedback.locations") {{ feedback.locations }}
       PaginationControls(
-        :count="locations.length"
+        :count="locationsPager.returned"
         :limit="locationsPager.limit"
         :offset="locationsPager.offset"
-        :hasMore="locations.length === locationsPager.limit"
+        :hasMore="locationsPager.hasMore"
+        :previousOffset="locationsPager.previousOffset"
+        :nextOffset="locationsPager.nextOffset"
         :loading="loading.locations"
         @change="locationsPager.offset = $event"
       )

@@ -132,10 +132,43 @@ textarea {
   gap: 10px;
 }
 
-.entity-group__title {
-  margin: 0;
-  font-size: 0.95rem;
+.entity-group__toggle {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(49, 196, 141, 0.18);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(49, 196, 141, 0.08);
   color: #b8ffd9;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+.entity-group__toggle:hover {
+  background: rgba(49, 196, 141, 0.14);
+}
+
+.entity-group__toggle.is-open {
+  border-color: rgba(47, 158, 247, 0.3);
+}
+
+.entity-group__caret {
+  font-size: 0.9rem;
+}
+
+.entity-group__count {
+  min-width: 1.75rem;
+  text-align: center;
+  border-radius: 999px;
+  padding: 0.15rem 0.45rem;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  font-size: 0.8rem;
 }
 
 .endpoint-group {

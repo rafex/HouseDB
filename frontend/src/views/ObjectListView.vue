@@ -4,7 +4,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import DetailModal from '../components/DetailModal.vue'
 import PaginationControls from '../components/PaginationControls.vue'
-import { normalizeApiError } from '../lib/api'
+import { createPaginationState, normalizeApiError, paginationFromResponse } from '../lib/api'
 import { useCatalogStore } from '../stores/catalogs'
 import { useSessionStore } from '../stores/session'
 
@@ -34,7 +34,8 @@ const results = ref([])
 const selectedItem = ref(null)
 const selectedTimeline = ref([])
 
-const pager = reactive({ limit: PAGE_SIZE, offset: 0 })
+const pager = reactive(createPaginationState(PAGE_SIZE))
+const timelinePager = reactive(createPaginationState(8))
 
 const hasSelectedItem = computed(() => Boolean(selectedItem.value))
 
@@ -77,6 +78,7 @@ async function runSearch() {
       offset: pager.offset,
     })
     results.value = response.items ?? []
+    Object.assign(pager, paginationFromResponse(response, pager))
   } catch (error) {
     feedback.search = normalizeApiError(error).message
   } finally {
@@ -96,13 +98,14 @@ async function loadItemDetail(inventoryItemId) {
     const [detail, timeline] = await Promise.all([
       api.getItem(inventoryItemId),
       api.listItemTimeline(inventoryItemId, {
-        limit: 8,
-        offset: 0,
+        limit: timelinePager.limit,
+        offset: timelinePager.offset,
       }),
     ])
 
     selectedItem.value = detail
     selectedTimeline.value = timeline.events ?? []
+    Object.assign(timelinePager, paginationFromResponse(timeline, timelinePager))
     syncListQuery(inventoryItemId)
   } catch (error) {
     feedback.detail = normalizeApiError(error).message
@@ -115,6 +118,7 @@ function closeDetail() {
   selectedItem.value = null
   selectedTimeline.value = []
   feedback.detail = ''
+  timelinePager.offset = 0
   syncListQuery()
 }
 
@@ -156,6 +160,12 @@ watch(() => pager.offset, () => {
   syncListQuery()
   runSearch()
 })
+
+watch(() => timelinePager.offset, () => {
+  if (selectedItem.value?.inventoryItem?.inventoryItemId) {
+    loadItemDetail(selectedItem.value.inventoryItem.inventoryItemId)
+  }
+})
 </script>
 
 <template lang="pug">
@@ -193,7 +203,7 @@ section.page-section
     .table-card
       .table-card__header
         h4.table-card__title Resultados
-        p.muted-copy {{ loading.search ? 'Consultando...' : `${results.length} registros visibles` }}
+        p.muted-copy {{ loading.search ? 'Consultando...' : `${pager.returned} registros visibles` }}
       table.table-grid(v-if="results.length > 0")
         thead
           tr
@@ -216,10 +226,12 @@ section.page-section
       p.empty-copy(v-else) No hay objetos con los filtros actuales.
 
     PaginationControls(
-      :count="results.length"
+      :count="pager.returned"
       :limit="pager.limit"
       :offset="pager.offset"
-      :hasMore="results.length === pager.limit"
+      :hasMore="pager.hasMore"
+      :previousOffset="pager.previousOffset"
+      :nextOffset="pager.nextOffset"
       :loading="loading.search"
       @change="pager.offset = $event"
     )
@@ -250,7 +262,7 @@ section.page-section
       .table-card
         .table-card__header
           h4.table-card__title Historial
-          p.muted-copy {{ selectedTimeline.length }} movimientos
+          p.muted-copy {{ timelinePager.returned }} movimientos visibles
         table.table-grid(v-if="selectedTimeline.length > 0")
           thead
             tr
@@ -263,4 +275,14 @@ section.page-section
               td {{ event.toHouseLocationPath || event.toHouseLocationLeafId || 'Sin destino' }}
               td {{ event.movementReason || 'Sin motivo' }}
         p.empty-copy(v-else) Este objeto aun no tiene historial visible.
+        PaginationControls(
+          :count="timelinePager.returned"
+          :limit="timelinePager.limit"
+          :offset="timelinePager.offset"
+          :hasMore="timelinePager.hasMore"
+          :previousOffset="timelinePager.previousOffset"
+          :nextOffset="timelinePager.nextOffset"
+          :loading="loading.detail"
+          @change="timelinePager.offset = $event"
+        )
 </template>

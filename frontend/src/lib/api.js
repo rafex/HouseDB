@@ -23,6 +23,48 @@ function withQuery(path, query) {
   return queryString ? `${path}?${queryString}` : path
 }
 
+export function createPaginationState(limit = 10, offset = 0) {
+  return {
+    limit,
+    offset,
+    returned: 0,
+    hasMore: false,
+    previousOffset: null,
+    nextOffset: null,
+  }
+}
+
+export function paginationFromResponse(response, fallback = {}) {
+  const pagination = response?.pagination ?? {}
+
+  return {
+    limit:
+      typeof pagination.limit === 'number'
+        ? pagination.limit
+        : (fallback.limit ?? 0),
+    offset:
+      typeof pagination.offset === 'number'
+        ? pagination.offset
+        : (fallback.offset ?? 0),
+    returned:
+      typeof pagination.returned === 'number'
+        ? pagination.returned
+        : (typeof response?.count === 'number' ? response.count : (fallback.returned ?? 0)),
+    hasMore:
+      typeof pagination.hasMore === 'boolean'
+        ? pagination.hasMore
+        : Boolean(fallback.hasMore),
+    previousOffset:
+      typeof pagination.previousOffset === 'number'
+        ? pagination.previousOffset
+        : null,
+    nextOffset:
+      typeof pagination.nextOffset === 'number'
+        ? pagination.nextOffset
+        : null,
+  }
+}
+
 export class HouseDbApiError extends Error {
   constructor(message, { status, data } = {}) {
     super(message)

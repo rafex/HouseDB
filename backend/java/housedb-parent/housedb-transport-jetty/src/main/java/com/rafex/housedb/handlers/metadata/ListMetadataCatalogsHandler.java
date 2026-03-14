@@ -1,9 +1,9 @@
 package com.rafex.housedb.handlers.metadata;
 
 import com.rafex.housedb.handlers.ExchangeAdapters;
+import com.rafex.housedb.handlers.support.PaginationSupport;
 import com.rafex.housedb.services.MetadataCatalogService;
 
-import java.util.Map;
 import java.util.logging.Logger;
 
 import dev.rafex.ether.http.core.HttpExchange;
@@ -25,9 +25,11 @@ final class ListMetadataCatalogsHandler {
             final var includeDisabled = MetadataRequestParsers.parseOptionalBoolean(query, "includeDisabled");
             final var limit = MetadataRequestParsers.parseOptionalInt(query, "limit");
             final var offset = MetadataRequestParsers.parseOptionalInt(query, "offset");
+            final var page = PaginationSupport.request(limit, offset, 50, 500);
 
-            final var catalogs = service.listMetadataCatalogs(metadataTarget, includeDisabled, limit, offset);
-            x.json(200, Map.of("catalogs", catalogs, "count", catalogs.size()));
+            final var catalogs = service.listMetadataCatalogs(metadataTarget, includeDisabled, page.fetchLimit(),
+                    page.offset());
+            x.json(200, PaginationSupport.response("catalogs", catalogs, page));
         });
     }
 }

@@ -1,14 +1,16 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import DetailModal from '../components/DetailModal.vue'
-import { normalizeApiError } from '../lib/api'
+import PaginationControls from '../components/PaginationControls.vue'
+import { createPaginationState, normalizeApiError, paginationFromResponse } from '../lib/api'
 import { useCatalogStore } from '../stores/catalogs'
 import { useSessionStore } from '../stores/session'
 
 const { api, isAuthenticated } = useSessionStore()
 const { loadHousesCatalog } = useCatalogStore()
+const PAGE_SIZE = 12
 
 const loading = reactive({
   houses: false,
@@ -27,6 +29,8 @@ const filters = reactive({
 const houses = ref([])
 const selectedHouse = ref(null)
 const selectedHouseLocations = ref([])
+const housesPager = reactive(createPaginationState(PAGE_SIZE))
+const detailPager = reactive(createPaginationState(12))
 
 const filteredHouses = computed(() => {
   const query = filters.q.trim().toLowerCase()
@@ -53,10 +57,11 @@ async function loadHouses() {
   try {
     await loadHousesCatalog({ force: true })
     const response = await api.listHouses({
-      limit: 100,
-      offset: 0,
+      limit: housesPager.limit,
+      offset: housesPager.offset,
     })
     houses.value = response.houses ?? []
+    Object.assign(housesPager, paginationFromResponse(response, housesPager))
   } catch (error) {
     feedback.houses = normalizeApiError(error).message
   } finally {
@@ -65,6 +70,12 @@ async function loadHouses() {
 }
 
 async function openHouse(house) {
+  if (selectedHouse.value?.houseId !== house.houseId && detailPager.offset !== 0) {
+    selectedHouse.value = house
+    detailPager.offset = 0
+    return
+  }
+
   selectedHouse.value = house
   selectedHouseLocations.value = []
   loading.detail = true
@@ -72,10 +83,11 @@ async function openHouse(house) {
 
   try {
     const response = await api.listHouseLocations(house.houseId, {
-      limit: 12,
-      offset: 0,
+      limit: detailPager.limit,
+      offset: detailPager.offset,
     })
     selectedHouseLocations.value = response.locations ?? []
+    Object.assign(detailPager, paginationFromResponse(response, detailPager))
   } catch (error) {
     feedback.detail = normalizeApiError(error).message
   } finally {
@@ -87,9 +99,18 @@ function closeDetail() {
   selectedHouse.value = null
   selectedHouseLocations.value = []
   feedback.detail = ''
+  detailPager.offset = 0
 }
 
 onMounted(loadHouses)
+
+watch(() => housesPager.offset, loadHouses)
+
+watch(() => detailPager.offset, () => {
+  if (selectedHouse.value) {
+    openHouse(selectedHouse.value)
+  }
+})
 </script>
 
 <template lang="pug">
@@ -120,7 +141,7 @@ section.page-section
     .table-card
       .table-card__header
         h4.table-card__title Resultado
-        p.muted-copy {{ loading.houses ? 'Consultando...' : `${filteredHouses.length} casas` }}
+        p.muted-copy {{ loading.houses ? 'Consultando...' : `${housesPager.returned} casas visibles` }}
       table.table-grid(v-if="filteredHouses.length > 0")
         thead
           tr
@@ -141,6 +162,16 @@ section.page-section
               button.circle-button.circle-button--success(type="button" @click="openHouse(house)") i
       p.empty-copy(v-else-if="loading.houses") Cargando casas...
       p.empty-copy(v-else) No hay casas visibles.
+      PaginationControls(
+        :count="housesPager.returned"
+        :limit="housesPager.limit"
+        :offset="housesPager.offset"
+        :hasMore="housesPager.hasMore"
+        :previousOffset="housesPager.previousOffset"
+        :nextOffset="housesPager.nextOffset"
+        :loading="loading.houses"
+        @change="housesPager.offset = $event"
+      )
 
   DetailModal(v-if="selectedHouse" :title="selectedHouse.name || 'Casa'" @close="closeDetail")
     p.form-feedback.form-feedback--error(v-if="feedback.detail") {{ feedback.detail }}
@@ -165,7 +196,7 @@ section.page-section
       .table-card
         .table-card__header
           h4.table-card__title Locaciones relacionadas
-          p.muted-copy {{ selectedHouseLocations.length }} visibles
+          p.muted-copy {{ detailPager.returned }} visibles
         table.table-grid(v-if="selectedHouseLocations.length > 0")
           thead
             tr
@@ -178,4 +209,14 @@ section.page-section
               td {{ location.locationKind || 'Sin tipo' }}
               td {{ location.path || 'Sin ruta' }}
         p.empty-copy(v-else-if="!loading.detail") Esta casa aun no tiene locaciones visibles.
+        PaginationControls(
+          :count="detailPager.returned"
+          :limit="detailPager.limit"
+          :offset="detailPager.offset"
+          :hasMore="detailPager.hasMore"
+          :previousOffset="detailPager.previousOffset"
+          :nextOffset="detailPager.nextOffset"
+          :loading="loading.detail"
+          @change="detailPager.offset = $event"
+        )
 </template>
