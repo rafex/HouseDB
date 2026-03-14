@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
+import MetadataFieldEditor from '../components/MetadataFieldEditor.vue'
 import { normalizeApiError } from '../lib/api'
 import { useCatalogStore } from '../stores/catalogs'
 import { useSessionStore } from '../stores/session'
@@ -13,13 +14,13 @@ const { houseOptions, loadHousesCatalog } = useCatalogStore()
 const loading = reactive({
   create: false,
   locations: false,
-  metadataCatalogs: false,
+  metadataTemplates: false,
 })
 
 const feedback = reactive({
   create: '',
   locations: '',
-  metadataCatalogs: '',
+  metadataTemplates: '',
 })
 
 const form = reactive({
@@ -35,14 +36,74 @@ const form = reactive({
   conditionStatus: 'active',
   movedBy: '',
   notes: '',
-  housedbMetadataCatalogId: '',
-  kiwiMetadataCatalogId: '',
-  housedbMetadataPreview: '',
-  kiwiMetadataPreview: '',
+  housedbMetadataTemplateId: '',
+  kiwiMetadataTemplateId: '',
 })
 
 const locations = ref([])
-const metadataCatalogs = ref([])
+const metadataTemplates = ref([])
+const housedbMetadataEntries = ref([])
+const kiwiMetadataEntries = ref([])
+
+const housedbSuggestionPresets = [
+  {
+    key: 'alias',
+    label: 'Alias',
+    placeholder: 'Ej. audifonos del escritorio',
+    hint: 'Nombre cotidiano con el que lo reconocerias rapidamente.',
+  },
+  {
+    key: 'color',
+    label: 'Color',
+    placeholder: 'Ej. negro mate',
+    hint: 'Describe el color o apariencia que te ayuda a ubicarlo.',
+  },
+  {
+    key: 'material',
+    label: 'Material',
+    placeholder: 'Ej. metal, plastico, madera',
+    hint: 'Util para distinguirlo de objetos parecidos.',
+  },
+  {
+    key: 'visualReference',
+    label: 'Referencia visual',
+    placeholder: 'Ej. caja azul con etiqueta blanca',
+    hint: 'Pista visual concreta para reencontrarlo.',
+  },
+  {
+    key: 'careNotes',
+    label: 'Nota de cuidado',
+    placeholder: 'Ej. no mojar, guardar en funda',
+    hint: 'Dato de cuidado o manejo para no perder contexto.',
+  },
+]
+
+const kiwiSuggestionPresets = [
+  {
+    key: 'brand',
+    label: 'Brand',
+    placeholder: 'Ej. Sony',
+    hint: 'Marca o fabricante reconocido por sistemas externos.',
+  },
+  {
+    key: 'model',
+    label: 'Model',
+    placeholder: 'Ej. WH-1000XM5',
+    hint: 'Modelo tecnico del objeto o activo.',
+  },
+  {
+    key: 'serialNumber',
+    label: 'Serial',
+    placeholder: 'Ej. SN-12345',
+    hint: 'Serie o identificador tecnico del activo.',
+  },
+  {
+    key: 'trackingLabel',
+    label: 'Tracking',
+    placeholder: 'Ej. source-housedb-001',
+    hint: 'Etiqueta tecnica para sincronizacion o trazabilidad.',
+  },
+]
 
 const leafLocationOptions = computed(() =>
   locations.value
@@ -54,31 +115,101 @@ const leafLocationOptions = computed(() =>
 )
 
 const housedbMetadataOptions = computed(() =>
-  metadataCatalogs.value
-    .filter((catalog) => catalog.metadataTarget === 'inventory_item')
-    .map((catalog) => ({
-      value: catalog.metadataCatalogId,
-      label: catalog.name,
-      payloadJson: catalog.payloadJson,
+  metadataTemplates.value
+    .filter((template) => template.metadataTarget === 'inventory_item')
+    .map((template) => ({
+      value: template.metadataTemplateId,
+      label: template.name,
+      description: template.description,
+      definitionJson: template.definitionJson,
     })),
 )
 
 const kiwiMetadataOptions = computed(() =>
-  metadataCatalogs.value
-    .filter((catalog) => catalog.metadataTarget === 'kiwi_object')
-    .map((catalog) => ({
-      value: catalog.metadataCatalogId,
-      label: catalog.name,
-      payloadJson: catalog.payloadJson,
+  metadataTemplates.value
+    .filter((template) => template.metadataTarget === 'kiwi_object')
+    .map((template) => ({
+      value: template.metadataTemplateId,
+      label: template.name,
+      description: template.description,
+      definitionJson: template.definitionJson,
     })),
 )
 
-function parseJsonField(value) {
-  if (!value) {
-    return undefined
+const housedbSuggestions = computed(() =>
+  mergeSuggestions(housedbSuggestionPresets, housedbMetadataOptions.value, housedbMetadataEntries.value),
+)
+
+const kiwiSuggestions = computed(() =>
+  mergeSuggestions(kiwiSuggestionPresets, kiwiMetadataOptions.value, kiwiMetadataEntries.value),
+)
+
+function parseTemplateDefinition(definitionJson) {
+  if (!definitionJson) {
+    return []
   }
 
-  return JSON.parse(value)
+  try {
+    const parsed = JSON.parse(definitionJson)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+function objectToEntries(value) {
+  return Object.entries(value ?? {}).map(([key, rawValue]) => ({
+    key,
+    value: rawValue == null ? '' : String(rawValue),
+  }))
+}
+
+function entriesToObject(entries) {
+  return (entries ?? []).reduce((accumulator, entry) => {
+    const key = entry.key?.trim()
+    const value = entry.value?.trim()
+    if (!key || !value) {
+      return accumulator
+    }
+
+    accumulator[key] = value
+    return accumulator
+  }, {})
+}
+
+function mergeSuggestions(baseSuggestions, catalogOptions, currentEntries) {
+  const currentKeys = new Set((currentEntries ?? []).map((entry) => entry.key))
+  const merged = new Map()
+
+  baseSuggestions.forEach((suggestion) => {
+    merged.set(suggestion.key, suggestion)
+  })
+
+  catalogOptions.forEach((template) => {
+    parseTemplateDefinition(template.definitionJson).forEach((field) => {
+      if (!field?.key || merged.has(field.key)) {
+        return
+      }
+
+      merged.set(field.key, {
+        key: field.key,
+        label: field.label || field.key,
+        placeholder: field.placeholder || `Valor para ${field.key}`,
+        hint: field.hint || template.description || `Sugerido por la plantilla ${template.label}.`,
+        defaultValue: field.defaultValue == null ? '' : String(field.defaultValue),
+      })
+    })
+  })
+
+  return [...merged.values()].filter((suggestion) => !currentKeys.has(suggestion.key))
+}
+
+function applyTemplateToEntries(target, templateId, options) {
+  const selected = options.find((option) => option.value === templateId)
+  target.value = parseTemplateDefinition(selected?.definitionJson).map((field) => ({
+    key: field.key,
+    value: field.defaultValue == null ? '' : String(field.defaultValue),
+  }))
 }
 
 async function loadLocations() {
@@ -104,20 +235,20 @@ async function loadLocations() {
   }
 }
 
-async function loadMetadataCatalogs() {
-  loading.metadataCatalogs = true
-  feedback.metadataCatalogs = ''
+async function loadMetadataTemplates() {
+  loading.metadataTemplates = true
+  feedback.metadataTemplates = ''
 
   try {
-    const response = await api.listMetadataCatalogs({
+    const response = await api.listMetadataTemplates({
       limit: 100,
       offset: 0,
     })
-    metadataCatalogs.value = response.catalogs ?? []
+    metadataTemplates.value = response.templates ?? []
   } catch (error) {
-    feedback.metadataCatalogs = normalizeApiError(error).message
+    feedback.metadataTemplates = normalizeApiError(error).message
   } finally {
-    loading.metadataCatalogs = false
+    loading.metadataTemplates = false
   }
 }
 
@@ -126,6 +257,9 @@ async function submit() {
   feedback.create = ''
 
   try {
+    const housedbMetadata = entriesToObject(housedbMetadataEntries.value)
+    const kiwiMetadata = entriesToObject(kiwiMetadataEntries.value)
+
     const response = await api.createItem({
       objectName: form.objectName,
       objectDescription: form.objectDescription || undefined,
@@ -141,12 +275,12 @@ async function submit() {
       houseLocationLeafId: form.houseLocationLeafId,
       movedBy: form.movedBy || undefined,
       notes: form.notes || undefined,
-      housedbMetadata: parseJsonField(form.housedbMetadataPreview),
-      kiwiMetadata: parseJsonField(form.kiwiMetadataPreview),
+      housedbMetadata: Object.keys(housedbMetadata).length > 0 ? housedbMetadata : undefined,
+      kiwiMetadata: Object.keys(kiwiMetadata).length > 0 ? kiwiMetadata : undefined,
     })
 
     await router.push({
-      name: 'inventory',
+      name: 'objects-list',
       query: {
         created: response.inventoryItemId,
       },
@@ -163,17 +297,15 @@ onMounted(async () => {
     return
   }
 
-  await Promise.all([loadHousesCatalog(), loadMetadataCatalogs()])
+  await Promise.all([loadHousesCatalog(), loadMetadataTemplates()])
 })
 
 watch(() => form.houseId, loadLocations)
-watch(() => form.housedbMetadataCatalogId, (catalogId) => {
-  const selected = housedbMetadataOptions.value.find((option) => option.value === catalogId)
-  form.housedbMetadataPreview = selected?.payloadJson ?? ''
+watch(() => form.housedbMetadataTemplateId, (templateId) => {
+  applyTemplateToEntries(housedbMetadataEntries, templateId, housedbMetadataOptions.value)
 })
-watch(() => form.kiwiMetadataCatalogId, (catalogId) => {
-  const selected = kiwiMetadataOptions.value.find((option) => option.value === catalogId)
-  form.kiwiMetadataPreview = selected?.payloadJson ?? ''
+watch(() => form.kiwiMetadataTemplateId, (templateId) => {
+  applyTemplateToEntries(kiwiMetadataEntries, templateId, kiwiMetadataOptions.value)
 })
 </script>
 
@@ -183,7 +315,7 @@ section.page-section
     p.panel-card__eyebrow Alta guiada
     h3.panel-card__title Registra un objeto para poder encontrarlo despues
     p.panel-card__text
-      | Primero elige la casa y la ubicacion exacta. Despues describe el objeto con palabras y metadatos utiles.
+      | Primero elige la casa y la ubicacion exacta. Despues describe el objeto con palabras, atributos y pistas utiles.
 
   article.panel-card
     form.form-grid(@submit.prevent="submit")
@@ -216,28 +348,34 @@ section.page-section
         input.form-input(v-model="form.movedBy" placeholder="Quien lo registro")
       textarea.form-input.form-textarea(v-model="form.notes" placeholder="Notas para encontrarlo o cuidarlo")
 
-      p.section-label Metadatos reutilizables
-      .form-row
-        select.form-input(v-model="form.housedbMetadataCatalogId" :disabled="loading.metadataCatalogs || housedbMetadataOptions.length === 0")
-          option(value="") Sin metadata HouseDB
-          option(v-for="option in housedbMetadataOptions" :key="option.value" :value="option.value")
-            | {{ option.label }}
-        select.form-input(v-model="form.kiwiMetadataCatalogId" :disabled="loading.metadataCatalogs || kiwiMetadataOptions.length === 0")
-          option(value="") Sin metadata Kiwi
-          option(v-for="option in kiwiMetadataOptions" :key="option.value" :value="option.value")
-            | {{ option.label }}
-      textarea.form-input.form-textarea(
-        v-model="form.housedbMetadataPreview"
-        placeholder='Metadata HouseDB editable'
-        :disabled="!form.housedbMetadataCatalogId"
-      )
-      textarea.form-input.form-textarea(
-        v-model="form.kiwiMetadataPreview"
-        placeholder='Metadata Kiwi editable'
-        :disabled="!form.kiwiMetadataCatalogId"
+      MetadataFieldEditor(
+        v-model="housedbMetadataEntries"
+        :catalogValue="form.housedbMetadataTemplateId"
+        title="Datos para encontrarlo en casa"
+        subtitle="Agrega atributos que te ayuden a reconocer el objeto rapidamente dentro de HouseDB."
+        help="Aqui van datos humanos y utiles para reencontrar el objeto: color, alias, material, referencias visuales o notas practicas."
+        catalogLabel="Plantilla sugerida HouseDB"
+        :catalogOptions="housedbMetadataOptions"
+        :suggestions="housedbSuggestions"
+        @update:catalogValue="form.housedbMetadataTemplateId = $event"
       )
 
+      details.metadata-advanced
+        summary.metadata-advanced__summary Datos tecnicos de integracion con Kiwi
+        MetadataFieldEditor(
+          v-model="kiwiMetadataEntries"
+          :catalogValue="form.kiwiMetadataTemplateId"
+          title="Datos tecnicos de integracion"
+          subtitle="Usa esta seccion solo cuando necesites guardar atributos tecnicos para Kiwi."
+          help="Este bloque es para integracion: marca, modelo, serie, tracking o claves que otros sistemas entiendan."
+          catalogLabel="Plantilla sugerida Kiwi"
+          :catalogOptions="kiwiMetadataOptions"
+          :suggestions="kiwiSuggestions"
+          :advanced="true"
+          @update:catalogValue="form.kiwiMetadataTemplateId = $event"
+        )
+
       button.primary-button(type="submit" :disabled="loading.create") Guardar objeto
-      p.form-feedback(v-if="feedback.create || feedback.locations || feedback.metadataCatalogs")
-        | {{ feedback.create || feedback.locations || feedback.metadataCatalogs }}
+      p.form-feedback(v-if="feedback.create || feedback.locations || feedback.metadataTemplates")
+        | {{ feedback.create || feedback.locations || feedback.metadataTemplates }}
 </template>

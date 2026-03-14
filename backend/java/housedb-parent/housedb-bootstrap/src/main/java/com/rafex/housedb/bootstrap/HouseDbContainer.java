@@ -7,12 +7,14 @@ import com.rafex.housedb.repository.HouseManagementRepository;
 import com.rafex.housedb.repository.InventoryMutationRepository;
 import com.rafex.housedb.repository.InventorySearchRepository;
 import com.rafex.housedb.repository.MetadataCatalogRepository;
+import com.rafex.housedb.repository.MetadataTemplateRepository;
 import com.rafex.housedb.repository.RefreshTokenRepository;
 import com.rafex.housedb.repository.UserRepository;
 import com.rafex.housedb.repository.impl.AppClientRepositoryImpl;
 import com.rafex.housedb.repository.impl.HouseRepositoryImpl;
 import com.rafex.housedb.repository.impl.ItemRepositoryImpl;
 import com.rafex.housedb.repository.impl.MetadataCatalogRepositoryImpl;
+import com.rafex.housedb.repository.impl.MetadataTemplateRepositoryImpl;
 import com.rafex.housedb.repository.impl.RefreshTokenRepositoryImpl;
 import com.rafex.housedb.repository.impl.UserRepositoryImpl;
 import com.rafex.housedb.security.PasswordHasherPBKDF2;
@@ -21,12 +23,14 @@ import com.rafex.housedb.services.AuthService;
 import com.rafex.housedb.services.HouseService;
 import com.rafex.housedb.services.ItemFinderService;
 import com.rafex.housedb.services.MetadataCatalogService;
+import com.rafex.housedb.services.MetadataTemplateService;
 import com.rafex.housedb.services.RefreshTokenService;
 import com.rafex.housedb.services.impl.AppClientAuthServiceImpl;
 import com.rafex.housedb.services.impl.AuthServiceImpl;
 import com.rafex.housedb.services.impl.HouseServiceImpl;
 import com.rafex.housedb.services.impl.ItemFinderServiceImpl;
 import com.rafex.housedb.services.impl.MetadataCatalogServiceImpl;
+import com.rafex.housedb.services.impl.MetadataTemplateServiceImpl;
 import com.rafex.housedb.services.impl.RefreshTokenServiceImpl;
 
 import java.util.Objects;
@@ -46,6 +50,8 @@ public final class HouseDbContainer {
             Optional<Supplier<HouseService>> houseService,
             Optional<Supplier<MetadataCatalogRepository>> metadataCatalogRepository,
             Optional<Supplier<MetadataCatalogService>> metadataCatalogService,
+            Optional<Supplier<MetadataTemplateRepository>> metadataTemplateRepository,
+            Optional<Supplier<MetadataTemplateService>> metadataTemplateService,
             Optional<Supplier<UserRepository>> userRepository,
             Optional<Supplier<RefreshTokenRepository>> refreshTokenRepository,
             Optional<Supplier<RefreshTokenService>> refreshTokenService,
@@ -70,6 +76,8 @@ public final class HouseDbContainer {
             houseService = houseService != null ? houseService : Optional.empty();
             metadataCatalogRepository = metadataCatalogRepository != null ? metadataCatalogRepository : Optional.empty();
             metadataCatalogService = metadataCatalogService != null ? metadataCatalogService : Optional.empty();
+            metadataTemplateRepository = metadataTemplateRepository != null ? metadataTemplateRepository : Optional.empty();
+            metadataTemplateService = metadataTemplateService != null ? metadataTemplateService : Optional.empty();
             userRepository = userRepository != null ? userRepository : Optional.empty();
             refreshTokenRepository = refreshTokenRepository != null ? refreshTokenRepository : Optional.empty();
             refreshTokenService = refreshTokenService != null ? refreshTokenService : Optional.empty();
@@ -95,6 +103,8 @@ public final class HouseDbContainer {
             private Supplier<HouseService> houseService;
             private Supplier<MetadataCatalogRepository> metadataCatalogRepository;
             private Supplier<MetadataCatalogService> metadataCatalogService;
+            private Supplier<MetadataTemplateRepository> metadataTemplateRepository;
+            private Supplier<MetadataTemplateService> metadataTemplateService;
             private Supplier<UserRepository> userRepository;
             private Supplier<RefreshTokenRepository> refreshTokenRepository;
             private Supplier<RefreshTokenService> refreshTokenService;
@@ -153,6 +163,16 @@ public final class HouseDbContainer {
                 return this;
             }
 
+            public Builder metadataTemplateRepository(final Supplier<MetadataTemplateRepository> value) {
+                metadataTemplateRepository = value;
+                return this;
+            }
+
+            public Builder metadataTemplateService(final Supplier<MetadataTemplateService> value) {
+                metadataTemplateService = value;
+                return this;
+            }
+
             public Builder userRepository(final Supplier<UserRepository> value) {
                 userRepository = value;
                 return this;
@@ -194,6 +214,7 @@ public final class HouseDbContainer {
                         Optional.ofNullable(houseLocationSyncRepository), Optional.ofNullable(itemFinderService),
                         Optional.ofNullable(houseManagementRepository), Optional.ofNullable(houseService),
                         Optional.ofNullable(metadataCatalogRepository), Optional.ofNullable(metadataCatalogService),
+                        Optional.ofNullable(metadataTemplateRepository), Optional.ofNullable(metadataTemplateService),
                         Optional.ofNullable(userRepository), Optional.ofNullable(refreshTokenRepository),
                         Optional.ofNullable(refreshTokenService), Optional.ofNullable(appClientRepository),
                         Optional.ofNullable(authService), Optional.ofNullable(appClientAuthService),
@@ -213,6 +234,8 @@ public final class HouseDbContainer {
     private final Lazy<HouseService> houseService;
     private final Lazy<MetadataCatalogRepository> metadataCatalogRepository;
     private final Lazy<MetadataCatalogService> metadataCatalogService;
+    private final Lazy<MetadataTemplateRepository> metadataTemplateRepository;
+    private final Lazy<MetadataTemplateService> metadataTemplateService;
     private final Lazy<HouseRepositoryImpl> houseRepository;
     private final Lazy<UserRepository> userRepository;
     private final Lazy<RefreshTokenRepository> refreshTokenRepository;
@@ -235,6 +258,8 @@ public final class HouseDbContainer {
         houseRepository = new Lazy<>(() -> new HouseRepositoryImpl(dataSource()));
         metadataCatalogRepository = new Lazy<>(
                 select(overrides.metadataCatalogRepository(), () -> new MetadataCatalogRepositoryImpl(dataSource())));
+        metadataTemplateRepository = new Lazy<>(
+                select(overrides.metadataTemplateRepository(), () -> new MetadataTemplateRepositoryImpl(dataSource())));
 
         inventorySearchRepository = new Lazy<>(select(overrides.inventorySearchRepository(), this::itemRepository));
         inventoryMutationRepository = new Lazy<>(select(overrides.inventoryMutationRepository(), this::itemRepository));
@@ -247,6 +272,8 @@ public final class HouseDbContainer {
         houseService = new Lazy<>(select(overrides.houseService(), () -> new HouseServiceImpl(houseManagementRepository())));
         metadataCatalogService = new Lazy<>(select(overrides.metadataCatalogService(),
                 () -> new MetadataCatalogServiceImpl(metadataCatalogRepository())));
+        metadataTemplateService = new Lazy<>(select(overrides.metadataTemplateService(),
+                () -> new MetadataTemplateServiceImpl(metadataTemplateRepository())));
 
         userRepository = new Lazy<>(select(overrides.userRepository(), () -> new UserRepositoryImpl(dataSource())));
         refreshTokenRepository = new Lazy<>(
@@ -310,6 +337,14 @@ public final class HouseDbContainer {
         return metadataCatalogService.get();
     }
 
+    public MetadataTemplateRepository metadataTemplateRepository() {
+        return metadataTemplateRepository.get();
+    }
+
+    public MetadataTemplateService metadataTemplateService() {
+        return metadataTemplateService.get();
+    }
+
     public UserRepository userRepository() {
         return userRepository.get();
     }
@@ -349,6 +384,8 @@ public final class HouseDbContainer {
         houseService();
         metadataCatalogRepository();
         metadataCatalogService();
+        metadataTemplateRepository();
+        metadataTemplateService();
         userRepository();
         refreshTokenRepository();
         refreshTokenService();

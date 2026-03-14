@@ -2,10 +2,13 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import AdminLayout from '../layouts/AdminLayout.vue'
 import AddObjectView from '../views/AddObjectView.vue'
+import AddHouseView from '../views/AddHouseView.vue'
+import AddLocationView from '../views/AddLocationView.vue'
 import DashboardView from '../views/DashboardView.vue'
-import HousesView from '../views/HousesView.vue'
-import InventoryView from '../views/InventoryView.vue'
+import HousesListView from '../views/HousesListView.vue'
 import LoginView from '../views/LoginView.vue'
+import LocationsListView from '../views/LocationsListView.vue'
+import ObjectListView from '../views/ObjectListView.vue'
 import UsersView from '../views/UsersView.vue'
 import { useSessionStore } from '../stores/session'
 
@@ -38,21 +41,21 @@ const routes = [
       },
       {
         path: 'casas',
-        name: 'houses',
-        component: HousesView,
+        name: 'spaces-houses',
+        component: HousesListView,
         meta: {
-          title: 'Espacios',
-          section: 'Casas y locaciones como contexto',
+          title: 'Casas',
+          section: 'Espacios > Casas',
           requiresAuth: true,
         },
       },
       {
         path: 'objetos',
-        name: 'inventory',
-        component: InventoryView,
+        name: 'objects-list',
+        component: ObjectListView,
         meta: {
-          title: 'Objetos',
-          section: 'Buscar, ubicar y mover objetos',
+          title: 'Lista de objetos',
+          section: 'Objetos > Lista',
           requiresAuth: true,
         },
       },
@@ -63,6 +66,36 @@ const routes = [
         meta: {
           title: 'Nuevo objeto',
           section: 'Alta guiada de un objeto',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'casas/nueva',
+        name: 'add-house',
+        component: AddHouseView,
+        meta: {
+          title: 'Nueva casa',
+          section: 'Espacios > Casas > Agregar',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'locaciones',
+        name: 'spaces-locations',
+        component: LocationsListView,
+        meta: {
+          title: 'Locaciones',
+          section: 'Espacios > Locaciones',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'locaciones/nueva',
+        name: 'add-location',
+        component: AddLocationView,
+        meta: {
+          title: 'Nueva locacion',
+          section: 'Espacios > Locaciones > Agregar',
           requiresAuth: true,
         },
       },

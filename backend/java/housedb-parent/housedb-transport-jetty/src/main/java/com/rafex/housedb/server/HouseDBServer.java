@@ -7,6 +7,7 @@ import com.rafex.housedb.handlers.HelloHandler;
 import com.rafex.housedb.handlers.items.ItemAliasRouterHandler;
 import com.rafex.housedb.handlers.items.ItemsRouterHandler;
 import com.rafex.housedb.handlers.metadata.MetadataCatalogsRouterHandler;
+import com.rafex.housedb.handlers.metadata.MetadataTemplatesRouterHandler;
 import com.rafex.housedb.handlers.support.CorsMiddleware;
 import com.rafex.housedb.handlers.support.GlowrootMiddleware;
 import com.rafex.housedb.handlers.support.NotFoundResource;
@@ -50,6 +51,7 @@ public final class HouseDBServer {
         final var houseRoutes = new HousesRouterHandler(jsonCodec, container.houseService(), container.itemFinderService(),
                 kiwiApiClient);
         final var metadataCatalogRoutes = new MetadataCatalogsRouterHandler(jsonCodec, container.metadataCatalogService());
+        final var metadataTemplateRoutes = new MetadataTemplatesRouterHandler(jsonCodec, container.metadataTemplateService());
         final var userRoutes = new UsersRouterHandler(jsonCodec, container.userRepository(),
                 container.passwordHasherPBKDF2());
 
@@ -65,6 +67,8 @@ public final class HouseDBServer {
         routeRegistry.add("/houses/*", houseRoutes);
         routeRegistry.add("/metadata-catalogs", metadataCatalogRoutes);
         routeRegistry.add("/metadata-catalogs/*", metadataCatalogRoutes);
+        routeRegistry.add("/metadata-templates", metadataTemplateRoutes);
+        routeRegistry.add("/metadata-templates/*", metadataTemplateRoutes);
         routeRegistry.add("/users", userRoutes);
         routeRegistry.add("/users/*", userRoutes);
         routeRegistry.add("/*", new NotFoundResource(jsonCodec));
@@ -96,6 +100,8 @@ public final class HouseDBServer {
                 AuthPolicy.protectedPrefix("/houses/*"),
                 AuthPolicy.protectedPrefix("/metadata-catalogs"),
                 AuthPolicy.protectedPrefix("/metadata-catalogs/*"),
+                AuthPolicy.protectedPrefix("/metadata-templates"),
+                AuthPolicy.protectedPrefix("/metadata-templates/*"),
                 AuthPolicy.protectedPrefix("/users"),
                 AuthPolicy.protectedPrefix("/users/*"));
 

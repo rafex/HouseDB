@@ -30,7 +30,7 @@ async function submit() {
 Teleport(to="body")
   .session-modal(v-if="state.showSessionModal")
     .session-modal__backdrop
-    .session-modal__card
+    .session-modal__card.animate__animated.animate__zoomIn
       p.panel-card__eyebrow Sesion
       h2.session-modal__title Iniciar sesion para continuar
       p.session-modal__text

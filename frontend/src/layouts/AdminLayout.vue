@@ -8,35 +8,58 @@ const route = useRoute()
 const router = useRouter()
 const { isAuthenticated, sessionSecondsLeft, state, logout } = useSessionStore()
 
-const navigationItems = [
+const navigationGroups = [
   {
     label: 'Inicio',
-    to: '/',
-    icon: 'DB',
+    items: [
+      {
+        label: 'Inicio',
+        to: '/',
+        icon: 'IN',
+      },
+    ],
   },
   {
     label: 'Objetos',
-    to: '/objetos',
-    icon: 'OB',
-  },
-  {
-    label: 'Nuevo objeto',
-    to: '/objetos/nuevo',
-    icon: 'NW',
+    items: [
+      {
+        label: 'Lista',
+        to: '/objetos',
+        icon: 'LS',
+      },
+      {
+        label: 'Nuevo',
+        to: '/objetos/nuevo',
+        icon: 'NV',
+      },
+    ],
   },
   {
     label: 'Espacios',
-    to: '/casas',
-    icon: 'ES',
-  },
-  {
-    label: 'Acceso/API',
-    to: '/usuarios-api',
-    icon: 'UA',
+    items: [
+      {
+        label: 'Casas',
+        to: '/casas',
+        icon: 'CA',
+      },
+      {
+        label: 'Locaciones',
+        to: '/locaciones',
+        icon: 'LC',
+      },
+    ],
   },
 ]
 
 const currentSection = computed(() => route.meta.section ?? 'Panel principal')
+const currentDateLabel = computed(() =>
+  new Intl.DateTimeFormat('es-MX', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  }).format(new Date()),
+)
+const userInitial = computed(() => (state.username || 'H').slice(0, 1).toUpperCase())
 
 function handleLogout() {
   logout()
@@ -45,43 +68,59 @@ function handleLogout() {
 </script>
 
 <template lang="pug">
-.admin-shell
-  aside.sidebar
-    .brand
-      .brand__mark H
-      .brand__copy
-        span.brand__eyebrow Suite
-        h1.brand__title HouseDB
+.app-shell
+  aside.app-sidebar.animate__animated.animate__fadeInLeft
+    RouterLink.sidebar-brand(to="/")
+      .sidebar-brand__icon
+        span H
+      .sidebar-brand__text
+        strong HouseDB
+        span Object memory
 
-    nav.sidebar__nav(aria-label="Principal")
-      RouterLink.sidebar__link(
-        v-for="item in navigationItems"
-        :key="item.to"
-        :to="item.to"
-      )
-        span.sidebar__icon {{ item.icon }}
-        span {{ item.label }}
+    hr.sidebar-divider
 
-    .sidebar__footer
-      p.sidebar__label Operacion del dia
-      strong.sidebar__value {{ isAuthenticated ? 'Sesion autenticada' : 'Sesion pendiente' }}
-      p.sidebar__hint
-        | {{ isAuthenticated ? `Token listo para ${state.username || 'usuario actual'}.` : 'Inicia sesion para activar las operaciones protegidas.' }}
+    nav.sidebar-nav(aria-label="Principal")
+      template(v-for="group in navigationGroups" :key="group.label")
+        p.sidebar-heading {{ group.label }}
+        RouterLink.sidebar-link(
+          v-for="item in group.items"
+          :key="item.to"
+          :to="item.to"
+        )
+          span.sidebar-link__icon {{ item.icon }}
+          span.sidebar-link__text {{ item.label }}
 
-  .main-panel
-    header.topbar
-      .topbar__copy
-        p.topbar__eyebrow Plataforma inmobiliaria
-        h2.topbar__title {{ route.meta.title }}
+    .sidebar-cta
+      p.sidebar-heading Sesion
+      strong.sidebar-cta__title {{ isAuthenticated ? 'Activa y protegida' : 'Pendiente de acceso' }}
+      p.sidebar-cta__text
+        | {{ isAuthenticated ? `Trabajando como ${state.username || 'usuario actual'}.` : 'Inicia sesion para ver casas, objetos y movimientos.' }}
+      RouterLink.split-button.split-button--success(to="/objetos/nuevo")
+        span.split-button__icon +
+        span.split-button__text Registrar objeto
+
+  .app-content
+    header.topbar.animate__animated.animate__fadeInDown
+      .topbar__left
+        p.topbar__eyebrow House inventory console
+        h1.topbar__title {{ route.meta.title }}
         p.topbar__subtitle {{ currentSection }}
 
-      .topbar__actions
-        p.status-pill(v-if="isAuthenticated && sessionSecondsLeft !== null")
-          | Token {{ sessionSecondsLeft }}s
+      .topbar__right
+        .topbar-chip
+          span.topbar-chip__label Hoy
+          strong {{ currentDateLabel }}
+        .topbar-chip(v-if="isAuthenticated && sessionSecondsLeft !== null")
+          span.topbar-chip__label Token
+          strong {{ sessionSecondsLeft }}s
+        .topbar-user(v-if="isAuthenticated")
+          .topbar-user__avatar {{ userInitial }}
+          .topbar-user__meta
+            strong {{ state.username || 'Usuario HouseDB' }}
+            span Sesion operativa
         RouterLink.ghost-button(to="/objetos") Ver objetos
-        RouterLink.primary-button(v-if="isAuthenticated" to="/objetos/nuevo") Nuevo objeto
-        button.primary-button(v-if="isAuthenticated" type="button" @click="handleLogout") Cerrar sesion
+        button.primary-button.primary-button--danger(v-if="isAuthenticated" type="button" @click="handleLogout") Cerrar sesion
 
-    main.content-area
+    main.page-content.animate__animated.animate__fadeIn
       RouterView
 </template>

@@ -207,6 +207,10 @@ export class HouseDbApiClient {
   listMetadataCatalogs(query) {
     return this.request(withQuery('/metadata-catalogs', query))
   }
+
+  listMetadataTemplates(query) {
+    return this.request(withQuery('/metadata-templates', query))
+  }
 }
 
 export function normalizeApiError(error) {
