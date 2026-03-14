@@ -1,6 +1,7 @@
 const state = {
   spec: null,
   operations: [],
+  entities: [],
   selected: null
 };
 
@@ -121,23 +122,64 @@ function buildFields(container, title, params, keyPrefix) {
 function renderEndpoints() {
   const query = el.endpointFilter.value.trim().toLowerCase();
   el.endpoints.innerHTML = "";
+  let firstVisibleOperation = null;
 
-  state.operations
-    .filter((op) => {
-      if (!query) return true;
-      return `${op.method} ${op.path} ${op.summary || ""}`.toLowerCase().includes(query);
-    })
-    .forEach((op, idx) => {
-      const item = document.createElement("button");
-      item.type = "button";
-      item.className = `endpoint-item${state.selected === op ? " active" : ""}`;
-      item.innerHTML = `<strong style="color:${methodColor(op.method)}">${op.method}</strong><code>${op.path}</code><small>${op.summary || "sin resumen"}</small>`;
-      item.addEventListener("click", () => selectOperation(op));
-      el.endpoints.appendChild(item);
-      if (idx === 0 && !state.selected) {
-        selectOperation(op);
-      }
+  state.entities.forEach((entity) => {
+    const visiblePaths = entity.paths
+      .map((pathGroup) => ({
+        ...pathGroup,
+        operations: pathGroup.operations.filter((op) => {
+          if (!query) return true;
+          return `${op.method} ${op.path} ${op.summary || ""}`.toLowerCase().includes(query);
+        })
+      }))
+      .filter((pathGroup) => pathGroup.operations.length > 0);
+
+    if (visiblePaths.length === 0) return;
+
+    if (!firstVisibleOperation) {
+      firstVisibleOperation = visiblePaths[0].operations[0];
+    }
+
+    const entityBlock = document.createElement("section");
+    entityBlock.className = "entity-group";
+
+    const entityTitle = document.createElement("h3");
+    entityTitle.className = "entity-group__title";
+    entityTitle.textContent = entity.label;
+    entityBlock.appendChild(entityTitle);
+
+    visiblePaths.forEach((pathGroup) => {
+      const pathBlock = document.createElement("article");
+      pathBlock.className = "endpoint-group";
+
+      const pathHeader = document.createElement("div");
+      pathHeader.className = "endpoint-group__header";
+      pathHeader.innerHTML = `<code>${pathGroup.path}</code><small>${pathGroup.summary}</small>`;
+      pathBlock.appendChild(pathHeader);
+
+      const methodsRow = document.createElement("div");
+      methodsRow.className = "endpoint-group__methods";
+
+      pathGroup.operations.forEach((op) => {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = `endpoint-item${state.selected === op ? " active" : ""}`;
+        item.innerHTML = `<strong style="color:${methodColor(op.method)}">${op.method}</strong><span>${op.summary || "sin resumen"}</span>`;
+        item.addEventListener("click", () => selectOperation(op));
+        methodsRow.appendChild(item);
+      });
+
+      pathBlock.appendChild(methodsRow);
+      entityBlock.appendChild(pathBlock);
     });
+
+    el.endpoints.appendChild(entityBlock);
+  });
+
+  if (!state.selected && firstVisibleOperation) {
+    selectOperation(firstVisibleOperation);
+  }
 }
 
 function authHint(operation) {
@@ -377,7 +419,54 @@ async function bootstrap() {
   });
 
   state.operations = ops.sort((a, b) => `${a.path}${a.method}`.localeCompare(`${b.path}${b.method}`));
+  state.entities = groupOperationsByEntity(state.operations);
   renderEndpoints();
+}
+
+function entityLabelFromPath(path) {
+  const segments = path.split("/").filter(Boolean);
+  if (segments.length === 0) return "/";
+  return `/${segments[0]}`;
+}
+
+function groupOperationsByEntity(operations) {
+  const entities = new Map();
+
+  operations.forEach((op) => {
+    const entityKey = entityLabelFromPath(op.path);
+
+    if (!entities.has(entityKey)) {
+      entities.set(entityKey, {
+        key: entityKey,
+        label: entityKey,
+        paths: new Map()
+      });
+    }
+
+    const entity = entities.get(entityKey);
+    if (!entity.paths.has(op.path)) {
+      entity.paths.set(op.path, {
+        path: op.path,
+        summary: op.summary || "Sin resumen",
+        operations: []
+      });
+    }
+
+    entity.paths.get(op.path).operations.push(op);
+  });
+
+  return [...entities.values()]
+    .map((entity) => ({
+      key: entity.key,
+      label: entity.label,
+      paths: [...entity.paths.values()]
+        .map((pathGroup) => ({
+          ...pathGroup,
+          operations: pathGroup.operations.sort((a, b) => a.method.localeCompare(b.method))
+        }))
+        .sort((a, b) => a.path.localeCompare(b.path))
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
 }
 
 el.sendBtn.addEventListener("click", sendRequest);

@@ -27,6 +27,17 @@ public final class MetadataTemplateRepositoryImpl implements MetadataTemplateRep
               FROM api_list_metadata_templates(?, ?, ?, ?)
             """;
 
+    private static final String SQL_CREATE_METADATA_TEMPLATE = """
+            SELECT metadata_template_id,
+                   metadata_target,
+                   code,
+                   name,
+                   description,
+                   definition::text AS definition_json,
+                   enabled
+              FROM api_create_metadata_template(?, ?, ?, ?, ?::jsonb, ?)
+            """;
+
     private final DataSource dataSource;
 
     public MetadataTemplateRepositoryImpl(final DataSource dataSource) {
@@ -58,5 +69,34 @@ public final class MetadataTemplateRepositoryImpl implements MetadataTemplateRep
             }
         }
         return result;
+    }
+
+    @Override
+    public MetadataTemplateEntity createMetadataTemplate(final String metadataTarget, final String code, final String name,
+            final String description, final String definitionJson, final boolean enabled) throws SQLException {
+        try (Connection connection = dataSource.getConnection();
+                PreparedStatement ps = connection.prepareStatement(SQL_CREATE_METADATA_TEMPLATE)) {
+            ps.setString(1, metadataTarget);
+            ps.setString(2, code);
+            ps.setString(3, name);
+            ps.setString(4, description);
+            ps.setString(5, definitionJson);
+            ps.setBoolean(6, enabled);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    throw new SQLException("api_create_metadata_template returned no rows");
+                }
+
+                return new MetadataTemplateEntity(
+                        rs.getObject("metadata_template_id", UUID.class),
+                        rs.getString("metadata_target"),
+                        rs.getString("code"),
+                        rs.getString("name"),
+                        rs.getString("description"),
+                        rs.getString("definition_json"),
+                        rs.getBoolean("enabled"));
+            }
+        }
     }
 }

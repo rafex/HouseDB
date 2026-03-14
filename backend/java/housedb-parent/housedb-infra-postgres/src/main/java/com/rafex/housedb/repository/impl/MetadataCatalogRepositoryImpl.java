@@ -27,6 +27,17 @@ public final class MetadataCatalogRepositoryImpl implements MetadataCatalogRepos
               FROM api_list_metadata_catalogs(?, ?, ?, ?)
             """;
 
+    private static final String SQL_CREATE_METADATA_CATALOG = """
+            SELECT metadata_catalog_id,
+                   metadata_target,
+                   code,
+                   name,
+                   description,
+                   payload::text AS payload_json,
+                   enabled
+              FROM api_create_metadata_catalog(?, ?, ?, ?, ?::jsonb, ?)
+            """;
+
     private final DataSource dataSource;
 
     public MetadataCatalogRepositoryImpl(final DataSource dataSource) {
@@ -58,5 +69,34 @@ public final class MetadataCatalogRepositoryImpl implements MetadataCatalogRepos
             }
         }
         return result;
+    }
+
+    @Override
+    public MetadataCatalogEntity createMetadataCatalog(final String metadataTarget, final String code, final String name,
+            final String description, final String payloadJson, final boolean enabled) throws SQLException {
+        try (Connection connection = dataSource.getConnection();
+                PreparedStatement ps = connection.prepareStatement(SQL_CREATE_METADATA_CATALOG)) {
+            ps.setString(1, metadataTarget);
+            ps.setString(2, code);
+            ps.setString(3, name);
+            ps.setString(4, description);
+            ps.setString(5, payloadJson);
+            ps.setBoolean(6, enabled);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    throw new SQLException("api_create_metadata_catalog returned no rows");
+                }
+
+                return new MetadataCatalogEntity(
+                        rs.getObject("metadata_catalog_id", UUID.class),
+                        rs.getString("metadata_target"),
+                        rs.getString("code"),
+                        rs.getString("name"),
+                        rs.getString("description"),
+                        rs.getString("payload_json"),
+                        rs.getBoolean("enabled"));
+            }
+        }
     }
 }

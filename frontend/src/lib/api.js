@@ -208,8 +208,22 @@ export class HouseDbApiClient {
     return this.request(withQuery('/metadata-catalogs', query))
   }
 
+  createMetadataCatalog(payload) {
+    return this.request('/metadata-catalogs', {
+      method: 'POST',
+      body: payload,
+    })
+  }
+
   listMetadataTemplates(query) {
     return this.request(withQuery('/metadata-templates', query))
+  }
+
+  createMetadataTemplate(payload) {
+    return this.request('/metadata-templates', {
+      method: 'POST',
+      body: payload,
+    })
   }
 }
 

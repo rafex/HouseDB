@@ -123,9 +123,52 @@ textarea {
   max-height: calc(100vh - 240px);
   overflow: auto;
   padding-right: 4px;
+  display: grid;
+  gap: 12px;
+}
+
+.entity-group {
+  display: grid;
+  gap: 10px;
+}
+
+.entity-group__title {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #b8ffd9;
+}
+
+.endpoint-group {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(7, 16, 29, 0.34);
+}
+
+.endpoint-group__header {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.endpoint-group__header code {
+  color: #b9cdf5;
+}
+
+.endpoint-group__header small {
+  color: var(--muted);
+}
+
+.endpoint-group__methods {
+  display: grid;
+  gap: 8px;
 }
 
 .endpoint-item {
+  width: 100%;
+  display: grid;
+  gap: 4px;
+  text-align: left;
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 8px;
@@ -140,10 +183,9 @@ textarea {
   transform: translateX(3px);
 }
 
-.endpoint-item code {
-  display: block;
-  margin-top: 4px;
-  color: #b9cdf5;
+.endpoint-item span {
+  color: var(--muted);
+  font-size: 0.84rem;
 }
 
 .request-header {

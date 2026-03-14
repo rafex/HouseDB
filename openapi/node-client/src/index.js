@@ -15,29 +15,44 @@ function usage() {
 Uso:
   node src/index.js <comando> [opciones]
 
-Comandos:
-  health
-  hello
-  hello-name [--name NOMBRE]
-  hello-name-post [--name NOMBRE]
-  login --username USER --password PASS
-  login-basic --username USER --password PASS
-  refresh-session --refresh-token TOKEN
-  token --client-id ID --client-secret SECRET [--grant-type client_credentials]
-  token-basic --client-id ID --client-secret SECRET
-  get-item --id UUID
-  create-item --house-location-leaf-id UUID --object-name NOMBRE [--object-category CAT] [--object-description DESC]
-              [--object-type EQUIPMENT] [--object-tags a,b] [--kiwi-metadata JSON] [--housedb-metadata JSON]
-              [--nickname TXT] [--serial-number TXT] [--condition-status active] [--moved-by TXT] [--notes TXT]
-  search-items [--q TEXTO] [--house-id UUID] [--house-location-leaf-id UUID] [--limit N]
-  list-houses [--include-disabled true|false] [--limit N]
-  list-house-ids [--include-disabled true|false] [--limit N]
-  create-house --name NOMBRE [--city CITY] [--state STATE] [--country COUNTRY]
-  list-house-members --house-id UUID [--include-disabled true|false] [--limit N]
-  list-house-locations --house-id UUID [--include-disabled true|false] [--limit N] [--offset N]
-  list-metadata-catalogs [--metadata-target kiwi_object|inventory_item] [--include-disabled true|false] [--limit N] [--offset N]
-  upsert-house-member --house-id UUID --user-id UUID [--role owner|family|guest] [--enabled true|false] [--method POST|PUT]
-  create-house-location --house-id UUID --name NOMBRE [--parent-house-location-id UUID]
+Entidades:
+  /auth
+    login --username USER --password PASS
+    login-basic --username USER --password PASS
+    refresh-session --refresh-token TOKEN
+    token --client-id ID --client-secret SECRET [--grant-type client_credentials]
+    token-basic --client-id ID --client-secret SECRET
+
+  /hello
+    hello
+    hello-name [GET] [--name NOMBRE]
+    hello-name-post [POST] [--name NOMBRE]
+
+  /health
+    health
+
+  /items
+    get-item --id UUID
+    create-item --house-location-leaf-id UUID --object-name NOMBRE [--object-category CAT] [--object-description DESC]
+                [--object-type EQUIPMENT] [--object-tags a,b] [--kiwi-metadata JSON] [--housedb-metadata JSON]
+                [--nickname TXT] [--serial-number TXT] [--condition-status active] [--moved-by TXT] [--notes TXT]
+    search-items [--q TEXTO] [--house-id UUID] [--house-location-leaf-id UUID] [--limit N]
+
+  /houses
+    list-houses [GET] [--include-disabled true|false] [--limit N]
+    create-house [POST] --name NOMBRE [--city CITY] [--state STATE] [--country COUNTRY]
+    /houses/ids
+      list-house-ids [GET] [--include-disabled true|false] [--limit N]
+    /houses/{houseId}/members
+      list-house-members [GET] --house-id UUID [--include-disabled true|false] [--limit N]
+      upsert-house-member [POST|PUT] --house-id UUID --user-id UUID [--role owner|family|guest] [--enabled true|false] [--method POST|PUT]
+    /houses/{houseId}/locations
+      list-house-locations [GET] --house-id UUID [--include-disabled true|false] [--limit N] [--offset N]
+      create-house-location [POST] --house-id UUID --name NOMBRE [--parent-house-location-id UUID]
+
+  /metadata-catalogs
+    list-metadata-catalogs [GET] [--metadata-target kiwi_object|inventory_item] [--include-disabled true|false] [--limit N] [--offset N]
+
   demo
 
 Variables de entorno:

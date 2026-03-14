@@ -48,6 +48,60 @@ public final class MetadataTemplateServiceImpl implements MetadataTemplateServic
                         .toList();
     }
 
+    @Override
+    public MetadataTemplate createMetadataTemplate(final String metadataTarget, final String code, final String name,
+            final String description, final String definitionJson, final Boolean enabled) throws SQLException {
+        final var entity = repository.createMetadataTemplate(
+                normalizeTarget(metadataTarget),
+                requireText(code, "code"),
+                requireText(name, "name"),
+                normalizeOptionalText(description),
+                normalizeDefinitionJson(definitionJson),
+                enabled == null ? true : enabled);
+
+        return new MetadataTemplate(
+                entity.metadataTemplateId(),
+                entity.metadataTarget(),
+                entity.code(),
+                entity.name(),
+                entity.description(),
+                entity.definitionJson(),
+                entity.enabled());
+    }
+
+    private static String normalizeTarget(final String metadataTarget) {
+        if (metadataTarget == null || metadataTarget.isBlank()) {
+            throw new IllegalArgumentException("metadataTarget is required");
+        }
+
+        final var safeTarget = metadataTarget.trim().toLowerCase();
+        if (!ALLOWED_TARGETS.contains(safeTarget)) {
+            throw new IllegalArgumentException("metadataTarget must be one of: kiwi_object, inventory_item");
+        }
+        return safeTarget;
+    }
+
+    private static String requireText(final String value, final String field) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(field + " is required");
+        }
+        return value.trim();
+    }
+
+    private static String normalizeOptionalText(final String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private static String normalizeDefinitionJson(final String value) {
+        if (value == null || value.isBlank()) {
+            return "[]";
+        }
+        return value.trim();
+    }
+
     private static int normalizeLimit(final Integer value, final int max) {
         if (value == null || value < 1) {
             return DEFAULT_LIMIT;

@@ -757,6 +757,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MetadataCatalogListResponse'
+    post:
+      tags: [Metadata]
+      summary: Crear catalogo reutilizable de metadatos
+      description: |
+        Endpoint privado. Requiere token de app o admin.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMetadataCatalogRequest'
+      responses:
+        '200':
+          description: Catalogo de metadatos creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetadataCatalog'
 
   /metadata-templates:
     get:
@@ -785,6 +805,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MetadataTemplateListResponse'
+    post:
+      tags: [Metadata]
+      summary: Crear plantilla reutilizable de metadatos
+      description: |
+        Endpoint privado. Requiere token de app o admin.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMetadataTemplateRequest'
+      responses:
+        '200':
+          description: Plantilla de metadatos creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetadataTemplate'
 
 components:
   securitySchemes:
@@ -1189,6 +1229,19 @@ components:
         payloadJson: { type: string }
         enabled: { type: boolean }
 
+    CreateMetadataCatalogRequest:
+      type: object
+      required: [metadataTarget, code, name]
+      properties:
+        metadataTarget:
+          type: string
+          enum: [kiwi_object, inventory_item]
+        code: { type: string }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        payloadJson: { type: string }
+        enabled: { type: boolean }
+
     MetadataCatalogListResponse:
       type: object
       required: [catalogs, count]
@@ -1205,6 +1258,19 @@ components:
       required: [metadataTemplateId, metadataTarget, code, name, definitionJson, enabled]
       properties:
         metadataTemplateId: { type: string, format: uuid }
+        metadataTarget:
+          type: string
+          enum: [kiwi_object, inventory_item]
+        code: { type: string }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        definitionJson: { type: string }
+        enabled: { type: boolean }
+
+    CreateMetadataTemplateRequest:
+      type: object
+      required: [metadataTarget, code, name]
+      properties:
         metadataTarget:
           type: string
           enum: [kiwi_object, inventory_item]

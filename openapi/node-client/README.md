@@ -36,25 +36,35 @@ npm run web
 ## Modo CLI
 
 ```bash
-npm run health
-npm run start -- hello
-npm run start -- hello-name
-npm run start -- hello-name -- --name Rafex
-npm run start -- hello-name-post -- --name Rafex
+/auth
 npm run start -- login --username demo --password secret
 npm run start -- refresh-session --refresh-token TOKEN
 npm run start -- token --client-id app1 --client-secret supersecret
+
+/hello
+npm run start -- hello
+npm run start -- hello-name -- --name Rafex
+npm run start -- hello-name-post -- --name Rafex
+
+/health
+npm run health
+
+/items
 npm run start -- get-item --id UUID
 npm run start -- create-item --house-location-leaf-id UUID --object-name "Linterna" --object-category camping --kiwi-metadata '{"source":"housedb"}' --housedb-metadata '{"purchaseDate":"2026-02-26"}'
 npm run start -- search-items --q guantes
+
+/houses
 npm run start -- list-houses
 npm run start -- list-house-ids
 npm run start -- create-house --name "Casa CDMX"
 npm run start -- list-house-members --house-id UUID
 npm run start -- list-house-locations --house-id UUID
-npm run start -- list-metadata-catalogs -- --metadata-target inventory_item
 npm run start -- upsert-house-member --house-id UUID --user-id UUID --role guest --method PUT
 npm run start -- create-house-location --house-id UUID --name "Closet principal" --parent-house-location-id UUID
+
+/metadata-catalogs
+npm run start -- list-metadata-catalogs -- --metadata-target inventory_item
 ```
 
 Variables útiles:
@@ -65,5 +75,11 @@ export HOUSEDB_TOKEN="<bearer-opcional>"
 ```
 
 Para endpoints protegidos, primero obtén un JWT con `login` o `token`, y luego exporta `HOUSEDB_TOKEN`.
+
+La UI web ahora agrupa operaciones por entidad raiz, por ejemplo:
+
+- `/auth` agrupa `login`, `refresh` y `token`
+- `/hello/name` muestra juntos los verbos `GET` y `POST`
+- `/houses/{houseId}/members` y `/houses/{houseId}/locations` agrupan sus verbos dentro de la misma ruta
 
 `/metadata-catalogs` es un endpoint privado y tambien requiere `HOUSEDB_TOKEN`.

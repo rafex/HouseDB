@@ -13,10 +13,12 @@ import dev.rafex.ether.json.JsonCodec;
 
 public final class MetadataTemplatesRouterHandler extends NonBlockingResourceHandler {
 
+    private final CreateMetadataTemplateHandler createMetadataTemplateHandler;
     private final ListMetadataTemplatesHandler listMetadataTemplatesHandler;
 
     public MetadataTemplatesRouterHandler(final JsonCodec jsonCodec, final MetadataTemplateService service) {
         super(jsonCodec, new HouseDbErrorMapper());
+        createMetadataTemplateHandler = new CreateMetadataTemplateHandler(jsonCodec, service);
         listMetadataTemplatesHandler = new ListMetadataTemplatesHandler(service);
     }
 
@@ -27,13 +29,21 @@ public final class MetadataTemplatesRouterHandler extends NonBlockingResourceHan
 
     @Override
     protected List<Route> routes() {
-        return List.of(Route.of("/", Set.of("GET")));
+        return List.of(Route.of("/", Set.of("GET", "POST")));
     }
 
     @Override
     public boolean get(final HttpExchange x) {
         if ("/metadata-templates".equals(x.path())) {
             return listMetadataTemplatesHandler.handle(x);
+        }
+        return false;
+    }
+
+    @Override
+    public boolean post(final HttpExchange x) {
+        if ("/metadata-templates".equals(x.path())) {
+            return createMetadataTemplateHandler.handle(x);
         }
         return false;
     }

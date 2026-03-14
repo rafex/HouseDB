@@ -9,4 +9,7 @@ public interface MetadataTemplateRepository {
 
     List<MetadataTemplateEntity> listMetadataTemplates(String metadataTarget, Boolean includeDisabled, int limit, int offset)
             throws SQLException;
+
+    MetadataTemplateEntity createMetadataTemplate(String metadataTarget, String code, String name, String description,
+            String definitionJson, boolean enabled) throws SQLException;
 }
