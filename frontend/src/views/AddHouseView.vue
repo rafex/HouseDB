@@ -1,12 +1,18 @@
 <script setup>
-import { reactive } from 'vue'
+import { reactive, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
-import { normalizeApiError } from '../lib/api'
+import LocationPickerMap from '../components/LocationPickerMap.vue'
+import { buildOpenStreetMapUrl, normalizeApiError } from '../lib/api'
 import { useSessionStore } from '../stores/session'
 
 const router = useRouter()
 const { api } = useSessionStore()
+
+function optionalCoordinate(value) {
+  const numericValue = Number(value)
+  return Number.isFinite(numericValue) ? numericValue : undefined
+}
 
 const loading = reactive({
   create: false,
@@ -22,7 +28,30 @@ const form = reactive({
   city: '',
   state: '',
   country: 'Mexico',
+  latitude: null,
+  longitude: null,
+  urlMap: '',
 })
+
+watch(
+  () => [form.latitude, form.longitude],
+  ([latitude, longitude], [previousLatitude, previousLongitude]) => {
+    const previousUrl = buildOpenStreetMapUrl(previousLatitude, previousLongitude)
+
+    const nextUrl = buildOpenStreetMapUrl(latitude, longitude)
+
+    if (!nextUrl) {
+      if (form.urlMap === previousUrl) {
+        form.urlMap = ''
+      }
+      return
+    }
+
+    if (!form.urlMap || form.urlMap === previousUrl) {
+      form.urlMap = nextUrl
+    }
+  },
+)
 
 async function submit() {
   loading.create = true
@@ -35,6 +64,9 @@ async function submit() {
       city: form.city || undefined,
       state: form.state || undefined,
       country: form.country || undefined,
+      latitude: optionalCoordinate(form.latitude),
+      longitude: optionalCoordinate(form.longitude),
+      urlMap: form.urlMap || undefined,
     })
 
     await router.push({ name: 'spaces-houses' })
@@ -70,6 +102,16 @@ section.page-section
         input.form-input(v-model="form.city" placeholder="Ciudad")
         input.form-input(v-model="form.state" placeholder="Estado")
       input.form-input(v-model="form.country" placeholder="Pais")
+      .form-row
+        input.form-input(v-model.number="form.latitude" type="number" step="any" placeholder="Latitud")
+        input.form-input(v-model.number="form.longitude" type="number" step="any" placeholder="Longitud")
+      LocationPickerMap(
+        v-model:latitude="form.latitude"
+        v-model:longitude="form.longitude"
+        title="Ubicacion de la casa"
+      )
+      input.form-input(v-model="form.urlMap" placeholder="URL de Google Maps u OpenStreetMap")
+      p.muted-copy Puedes pegar una URL externa o dejar la sugerida por OpenStreetMap.
       button.primary-button.primary-button--success(type="submit" :disabled="loading.create") Guardar casa
       p.form-feedback.form-feedback--error(v-if="feedback.create") {{ feedback.create }}
 </template>

@@ -13,6 +13,8 @@ const router = useRouter()
 const { api, isAuthenticated } = useSessionStore()
 const { houseOptions, getHouseById, loadHousesCatalog } = useCatalogStore()
 const PAGE_SIZE = 16
+const LOCATION_KIND_HELP =
+  'El nombre podria ser "Closet principal" y el locationKind algo como "room", "cabinet", "shelf" o "slot".'
 
 const loading = reactive({
   houses: false,
@@ -173,7 +175,7 @@ section.page-section
         thead
           tr
             th Nombre
-            th Tipo
+            th(:title="LOCATION_KIND_HELP") Tipo
             th Ruta
             th Hoja
             th.table-grid__actions Acciones

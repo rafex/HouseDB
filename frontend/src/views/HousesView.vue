@@ -1,13 +1,26 @@
 <script setup>
 import { onMounted, reactive, ref, watch } from 'vue'
 
+import LocationPickerMap from '../components/LocationPickerMap.vue'
 import PaginationControls from '../components/PaginationControls.vue'
-import { createPaginationState, normalizeApiError, paginationFromResponse } from '../lib/api'
+import {
+  buildOpenStreetMapUrl,
+  createPaginationState,
+  normalizeApiError,
+  paginationFromResponse,
+} from '../lib/api'
 import { useCatalogStore } from '../stores/catalogs'
 import { useSessionStore } from '../stores/session'
 
 const { api, isAuthenticated } = useSessionStore()
 const { houseOptions, getHouseById, loadHousesCatalog } = useCatalogStore()
+const LOCATION_KIND_HELP =
+  'El nombre podria ser "Closet principal" y el locationKind algo como "room", "cabinet", "shelf" o "slot".'
+
+function optionalCoordinate(value) {
+  const numericValue = Number(value)
+  return Number.isFinite(numericValue) ? numericValue : undefined
+}
 
 const loading = reactive({
   houses: false,
@@ -37,6 +50,9 @@ const houseForm = reactive({
   city: '',
   state: '',
   country: 'Mexico',
+  latitude: null,
+  longitude: null,
+  urlMap: '',
 })
 
 const locationForm = reactive({
@@ -46,7 +62,29 @@ const locationForm = reactive({
   isLeaf: true,
   referenceCode: '',
   notes: '',
+  latitude: null,
+  longitude: null,
 })
+
+watch(
+  () => [houseForm.latitude, houseForm.longitude],
+  ([latitude, longitude], [previousLatitude, previousLongitude]) => {
+    const previousUrl = buildOpenStreetMapUrl(previousLatitude, previousLongitude)
+
+    const nextUrl = buildOpenStreetMapUrl(latitude, longitude)
+
+    if (!nextUrl) {
+      if (houseForm.urlMap === previousUrl) {
+        houseForm.urlMap = ''
+      }
+      return
+    }
+
+    if (!houseForm.urlMap || houseForm.urlMap === previousUrl) {
+      houseForm.urlMap = nextUrl
+    }
+  },
+)
 
 async function loadHouses() {
   if (!isAuthenticated.value) {
@@ -115,6 +153,9 @@ async function submitHouse() {
       city: houseForm.city || undefined,
       state: houseForm.state || undefined,
       country: houseForm.country || undefined,
+      latitude: optionalCoordinate(houseForm.latitude),
+      longitude: optionalCoordinate(houseForm.longitude),
+      urlMap: houseForm.urlMap || undefined,
     })
     Object.assign(houseForm, {
       name: '',
@@ -122,6 +163,9 @@ async function submitHouse() {
       city: '',
       state: '',
       country: 'Mexico',
+      latitude: null,
+      longitude: null,
+      urlMap: '',
     })
     await loadHouses()
     feedback.createHouse = 'Casa registrada.'
@@ -149,6 +193,8 @@ async function submitLocation() {
       isLeaf: locationForm.isLeaf,
       referenceCode: locationForm.referenceCode || undefined,
       notes: locationForm.notes || undefined,
+      latitude: optionalCoordinate(locationForm.latitude),
+      longitude: optionalCoordinate(locationForm.longitude),
     })
     Object.assign(locationForm, {
       name: '',
@@ -157,6 +203,8 @@ async function submitLocation() {
       isLeaf: true,
       referenceCode: '',
       notes: '',
+      latitude: null,
+      longitude: null,
     })
     locationsPager.offset = 0
     await loadLocations()
@@ -222,6 +270,16 @@ section.page-section
           input.form-input(v-model="houseForm.city" placeholder="Ciudad")
           input.form-input(v-model="houseForm.state" placeholder="Estado")
         input.form-input(v-model="houseForm.country" placeholder="Pais")
+        .form-row
+          input.form-input(v-model.number="houseForm.latitude" type="number" step="any" placeholder="Latitud")
+          input.form-input(v-model.number="houseForm.longitude" type="number" step="any" placeholder="Longitud")
+        LocationPickerMap(
+          v-model:latitude="houseForm.latitude"
+          v-model:longitude="houseForm.longitude"
+          title="Ubicacion de la casa"
+        )
+        input.form-input(v-model="houseForm.urlMap" placeholder="URL de Google Maps u OpenStreetMap")
+        p.muted-copy Puedes pegar una URL manual o usar la sugerida desde el punto seleccionado.
         button.primary-button(type="submit" :disabled="loading.createHouse") Guardar casa
         p.form-feedback(v-if="feedback.createHouse") {{ feedback.createHouse }}
 
@@ -237,7 +295,7 @@ section.page-section
         thead
           tr
             th Nombre
-            th Tipo
+            th(:title="LOCATION_KIND_HELP") Tipo
             th Ruta
             th Hoja
         tbody
@@ -268,11 +326,20 @@ section.page-section
           option(v-for="location in locations" :key="location.houseLocationId" :value="location.houseLocationId")
             | {{ location.path || location.name }}
         .form-row
-          input.form-input(v-model="locationForm.locationKind" placeholder="locationKind")
+          input.form-input(v-model="locationForm.locationKind" placeholder="locationKind" :title="LOCATION_KIND_HELP")
           input.form-input(v-model="locationForm.referenceCode" placeholder="referenceCode")
+        p.muted-copy(:title="LOCATION_KIND_HELP") {{ LOCATION_KIND_HELP }}
         label.toggle-field
           input(type="checkbox" v-model="locationForm.isLeaf")
           span Es locacion hoja
+        .form-row
+          input.form-input(v-model.number="locationForm.latitude" type="number" step="any" placeholder="Latitud")
+          input.form-input(v-model.number="locationForm.longitude" type="number" step="any" placeholder="Longitud")
+        LocationPickerMap(
+          v-model:latitude="locationForm.latitude"
+          v-model:longitude="locationForm.longitude"
+          title="Ubicacion de la locacion"
+        )
         textarea.form-input.form-textarea(v-model="locationForm.notes" placeholder="Notas")
         button.primary-button(type="submit" :disabled="loading.createLocation") Guardar locacion
         p.form-feedback(v-if="feedback.createLocation") {{ feedback.createLocation }}

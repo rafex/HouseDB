@@ -65,6 +65,17 @@ export function paginationFromResponse(response, fallback = {}) {
   }
 }
 
+export function buildOpenStreetMapUrl(latitude, longitude) {
+  const normalizedLatitude = Number(latitude)
+  const normalizedLongitude = Number(longitude)
+
+  if (!Number.isFinite(normalizedLatitude) || !Number.isFinite(normalizedLongitude)) {
+    return ''
+  }
+
+  return `https://www.openstreetmap.org/?mlat=${normalizedLatitude}&mlon=${normalizedLongitude}#map=18/${normalizedLatitude}/${normalizedLongitude}`
+}
+
 export class HouseDbApiError extends Error {
   constructor(message, { status, data } = {}) {
     super(message)
