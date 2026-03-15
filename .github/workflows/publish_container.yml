@@ -70,10 +70,19 @@ jobs:
           fi
 
   build-and-push-backend:
-    name: Build and push backend to GHCR
+    name: Build and push backend (${{ matrix.arch }}) to GHCR
     needs: check_backend_paths
     if: ${{ github.event_name == 'workflow_dispatch' || needs.check_backend_paths.outputs.changed == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+          - arch: arm64
+            platform: linux/arm64
 
     steps:
       - name: Checkout
@@ -122,6 +131,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push (release/latest + sha tags)
+        id: backend_build
         uses: docker/build-push-action@v6
         with:
           context: backend/java
@@ -129,26 +139,99 @@ jobs:
           push: true
           provenance: false
           sbom: false
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ matrix.platform }}
           tags: |
-            ghcr.io/${{ github.repository_owner }}/housedb-backend:${{ steps.image_tag.outputs.value }}
-            ghcr.io/${{ github.repository_owner }}/housedb-backend:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/housedb-backend:${{ steps.image_tag.outputs.value }}-${{ matrix.arch }}
+            ghcr.io/${{ github.repository_owner }}/housedb-backend:${{ github.sha }}-${{ matrix.arch }}
           cache-from: |
-            type=registry,ref=ghcr.io/${{ github.repository_owner }}/housedb-backend:${{ github.sha }}
+            type=registry,ref=ghcr.io/${{ github.repository_owner }}/housedb-backend:${{ github.sha }}-${{ matrix.arch }}
+          cache-to: type=inline
+
+      - name: Dump backend build diagnostics
+        if: failure()
+        run: |
+          echo "=== docker buildx ls ==="
+          docker buildx ls || true
+          echo
+          echo "=== docker buildx du ==="
+          docker buildx du || true
+          echo
+          echo "=== docker ps -a ==="
+          docker ps -a || true
+          echo
+          echo "=== buildkit logs ==="
+          docker logs "$(docker ps -aq --filter 'name=buildx_buildkit')" || true
 
       - name: Publish visibility note
         run: |
           IMAGE_BASE="ghcr.io/${{ github.repository_owner }}/housedb-backend"
           echo "Image pushed to: $IMAGE_BASE"
-          echo "Final image URL (primary): $IMAGE_BASE:${{ steps.image_tag.outputs.value }}"
-          echo "Final image URL (sha): $IMAGE_BASE:${{ github.sha }}"
+          echo "Final image URL (primary): $IMAGE_BASE:${{ steps.image_tag.outputs.value }}-${{ matrix.arch }}"
+          echo "Final image URL (sha): $IMAGE_BASE:${{ github.sha }}-${{ matrix.arch }}"
           echo "Make the package public in GitHub Packages UI if you want anonymous pulls."
 
+  publish-backend-manifest:
+    name: Publish backend multi-arch manifest
+    needs:
+      - check_backend_paths
+      - build-and-push-backend
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.check_backend_paths.outputs.changed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Resolve and validate image tag
+        id: image_tag
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            IMAGE_TAG="${{ github.event.inputs.version_tag }}"
+          else
+            IMAGE_TAG="${GITHUB_REF_NAME}"
+          fi
+
+          if ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}(-[0-9]+)?$'; then
+            echo "Invalid tag format: $IMAGE_TAG"
+            echo "Expected format: vN.YYYYmmDD[-N] (examples: v1.20260222, v1.20260222-1, v2.20260222)"
+            exit 1
+          fi
+
+          echo "value=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create backend multi-arch manifests
+        run: |
+          IMAGE_BASE="ghcr.io/${{ github.repository_owner }}/housedb-backend"
+          docker buildx imagetools create \
+            --tag "$IMAGE_BASE:${{ steps.image_tag.outputs.value }}" \
+            --tag "$IMAGE_BASE:${{ github.sha }}" \
+            "$IMAGE_BASE:${{ steps.image_tag.outputs.value }}-amd64" \
+            "$IMAGE_BASE:${{ steps.image_tag.outputs.value }}-arm64"
+
+      - name: Inspect backend multi-arch manifest
+        run: |
+          IMAGE_BASE="ghcr.io/${{ github.repository_owner }}/housedb-backend"
+          docker buildx imagetools inspect "$IMAGE_BASE:${{ steps.image_tag.outputs.value }}"
+
   build-and-push-frontend:
-    name: Build and push frontend to GHCR
+    name: Build and push frontend (${{ matrix.arch }}) to GHCR
     needs: check_frontend_paths
     if: ${{ github.event_name == 'workflow_dispatch' || needs.check_frontend_paths.outputs.changed == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+          - arch: arm64
+            platform: linux/arm64
     env:
       FRONTEND_API_BASE_URL: https://housedb.v1.rafex.cloud
 
@@ -199,6 +282,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push frontend (release/latest + sha tags)
+        id: frontend_build
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -208,24 +292,90 @@ jobs:
           push: true
           provenance: false
           sbom: false
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ matrix.platform }}
           tags: |
-            ghcr.io/${{ github.repository_owner }}/housedb-frontend:${{ steps.image_tag.outputs.value }}
-            ghcr.io/${{ github.repository_owner }}/housedb-frontend:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/housedb-frontend:${{ steps.image_tag.outputs.value }}-${{ matrix.arch }}
+            ghcr.io/${{ github.repository_owner }}/housedb-frontend:${{ github.sha }}-${{ matrix.arch }}
+          cache-to: type=inline
+
+      - name: Dump frontend build diagnostics
+        if: failure()
+        run: |
+          echo "=== docker buildx ls ==="
+          docker buildx ls || true
+          echo
+          echo "=== docker buildx du ==="
+          docker buildx du || true
+          echo
+          echo "=== docker ps -a ==="
+          docker ps -a || true
+          echo
+          echo "=== buildkit logs ==="
+          docker logs "$(docker ps -aq --filter 'name=buildx_buildkit')" || true
 
       - name: Publish visibility note
         run: |
           IMAGE_BASE="ghcr.io/${{ github.repository_owner }}/housedb-frontend"
           echo "Image pushed to: $IMAGE_BASE"
-          echo "Final image URL (primary): $IMAGE_BASE:${{ steps.image_tag.outputs.value }}"
-          echo "Final image URL (sha): $IMAGE_BASE:${{ github.sha }}"
+          echo "Final image URL (primary): $IMAGE_BASE:${{ steps.image_tag.outputs.value }}-${{ matrix.arch }}"
+          echo "Final image URL (sha): $IMAGE_BASE:${{ github.sha }}-${{ matrix.arch }}"
           echo "Make the package public in GitHub Packages UI if you want anonymous pulls."
+
+  publish-frontend-manifest:
+    name: Publish frontend multi-arch manifest
+    needs:
+      - check_frontend_paths
+      - build-and-push-frontend
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.check_frontend_paths.outputs.changed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      FRONTEND_API_BASE_URL: https://housedb.v1.rafex.cloud
+
+    steps:
+      - name: Resolve and validate image tag
+        id: image_tag
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            IMAGE_TAG="${{ github.event.inputs.version_tag }}"
+          else
+            IMAGE_TAG="${GITHUB_REF_NAME}"
+          fi
+
+          if ! echo "$IMAGE_TAG" | grep -Eq '^v[0-9]+\.[0-9]{8}(-[0-9]+)?$'; then
+            echo "Invalid tag format: $IMAGE_TAG"
+            echo "Expected format: vN.YYYYmmDD[-N] (examples: v1.20260222, v1.20260222-1, v2.20260222)"
+            exit 1
+          fi
+
+          echo "value=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create frontend multi-arch manifests
+        run: |
+          IMAGE_BASE="ghcr.io/${{ github.repository_owner }}/housedb-frontend"
+          docker buildx imagetools create \
+            --tag "$IMAGE_BASE:${{ steps.image_tag.outputs.value }}" \
+            --tag "$IMAGE_BASE:${{ github.sha }}" \
+            "$IMAGE_BASE:${{ steps.image_tag.outputs.value }}-amd64" \
+            "$IMAGE_BASE:${{ steps.image_tag.outputs.value }}-arm64"
+
+      - name: Inspect frontend multi-arch manifest
+        run: |
+          IMAGE_BASE="ghcr.io/${{ github.repository_owner }}/housedb-frontend"
+          docker buildx imagetools inspect "$IMAGE_BASE:${{ steps.image_tag.outputs.value }}"
 
   deploy-after-publish:
     name: Deploy after publish
     needs:
-      - build-and-push-backend
-      - build-and-push-frontend
+      - publish-backend-manifest
+      - publish-frontend-manifest
     if: ${{ github.event_name == 'push' && github.ref_type == 'tag' }}
     uses: ./.github/workflows/deploy.yml
     with:
