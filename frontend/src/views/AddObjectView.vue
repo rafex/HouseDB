@@ -14,12 +14,14 @@ const { houseOptions, loadHousesCatalog } = useCatalogStore()
 const loading = reactive({
   create: false,
   locations: false,
+  metadataCatalogs: false,
   metadataTemplates: false,
 })
 
 const feedback = reactive({
   create: '',
   locations: '',
+  metadataCatalogs: '',
   metadataTemplates: '',
 })
 
@@ -41,6 +43,7 @@ const form = reactive({
 })
 
 const locations = ref([])
+const metadataCatalogs = ref([])
 const metadataTemplates = ref([])
 const housedbMetadataEntries = ref([])
 const kiwiMetadataEntries = ref([])
@@ -137,11 +140,21 @@ const kiwiMetadataOptions = computed(() =>
 )
 
 const housedbSuggestions = computed(() =>
-  mergeSuggestions(housedbSuggestionPresets, housedbMetadataOptions.value, housedbMetadataEntries.value),
+  mergeSuggestions(
+    housedbSuggestionPresets,
+    housedbMetadataOptions.value,
+    metadataCatalogs.value.filter((catalog) => catalog.metadataTarget === 'inventory_item'),
+    housedbMetadataEntries.value,
+  ),
 )
 
 const kiwiSuggestions = computed(() =>
-  mergeSuggestions(kiwiSuggestionPresets, kiwiMetadataOptions.value, kiwiMetadataEntries.value),
+  mergeSuggestions(
+    kiwiSuggestionPresets,
+    kiwiMetadataOptions.value,
+    metadataCatalogs.value.filter((catalog) => catalog.metadataTarget === 'kiwi_object'),
+    kiwiMetadataEntries.value,
+  ),
 )
 
 function parseTemplateDefinition(definitionJson) {
@@ -177,7 +190,7 @@ function entriesToObject(entries) {
   }, {})
 }
 
-function mergeSuggestions(baseSuggestions, catalogOptions, currentEntries) {
+function mergeSuggestions(baseSuggestions, templateOptions, catalogEntries, currentEntries) {
   const currentKeys = new Set((currentEntries ?? []).map((entry) => entry.key))
   const merged = new Map()
 
@@ -185,7 +198,7 @@ function mergeSuggestions(baseSuggestions, catalogOptions, currentEntries) {
     merged.set(suggestion.key, suggestion)
   })
 
-  catalogOptions.forEach((template) => {
+  templateOptions.forEach((template) => {
     parseTemplateDefinition(template.definitionJson).forEach((field) => {
       if (!field?.key || merged.has(field.key)) {
         return
@@ -201,7 +214,65 @@ function mergeSuggestions(baseSuggestions, catalogOptions, currentEntries) {
     })
   })
 
+  catalogEntries.forEach((catalog) => {
+    parseCatalogPayload(catalog.payloadJson).forEach((field) => {
+      if (!field?.key || merged.has(field.key)) {
+        return
+      }
+
+      merged.set(field.key, field)
+    })
+  })
+
   return [...merged.values()].filter((suggestion) => !currentKeys.has(suggestion.key))
+}
+
+function parseCatalogPayload(payloadJson) {
+  if (!payloadJson) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(payloadJson)
+
+    if (Array.isArray(parsed)) {
+      return parsed
+        .filter((field) => field?.key)
+        .map((field) => ({
+          key: field.key,
+          label: field.label || field.key,
+          placeholder: field.placeholder || `Valor para ${field.key}`,
+          hint: field.hint || 'Clave sugerida desde el catalogo reusable.',
+          defaultValue: field.defaultValue == null ? '' : String(field.defaultValue),
+        }))
+    }
+
+    if (Array.isArray(parsed?.fields)) {
+      return parsed.fields
+        .filter((field) => field?.key)
+        .map((field) => ({
+          key: field.key,
+          label: field.label || field.key,
+          placeholder: field.placeholder || `Valor para ${field.key}`,
+          hint: field.hint || 'Clave sugerida desde el catalogo reusable.',
+          defaultValue: field.defaultValue == null ? '' : String(field.defaultValue),
+        }))
+    }
+
+    if (parsed && typeof parsed === 'object') {
+      return Object.entries(parsed).map(([key, value]) => ({
+        key,
+        label: key,
+        placeholder: `Valor para ${key}`,
+        hint: 'Clave sugerida desde el catalogo reusable.',
+        defaultValue: value == null ? '' : String(value),
+      }))
+    }
+  } catch {
+    return []
+  }
+
+  return []
 }
 
 function applyTemplateToEntries(target, templateId, options) {
@@ -252,6 +323,23 @@ async function loadMetadataTemplates() {
   }
 }
 
+async function loadMetadataCatalogs() {
+  loading.metadataCatalogs = true
+  feedback.metadataCatalogs = ''
+
+  try {
+    const response = await api.listMetadataCatalogs({
+      limit: 100,
+      offset: 0,
+    })
+    metadataCatalogs.value = response.catalogs ?? []
+  } catch (error) {
+    feedback.metadataCatalogs = normalizeApiError(error).message
+  } finally {
+    loading.metadataCatalogs = false
+  }
+}
+
 async function submit() {
   loading.create = true
   feedback.create = ''
@@ -297,7 +385,7 @@ onMounted(async () => {
     return
   }
 
-  await Promise.all([loadHousesCatalog(), loadMetadataTemplates()])
+  await Promise.all([loadHousesCatalog(), loadMetadataTemplates(), loadMetadataCatalogs()])
 })
 
 watch(() => form.houseId, loadLocations)
@@ -376,6 +464,6 @@ section.page-section
         )
 
       button.primary-button(type="submit" :disabled="loading.create") Guardar objeto
-      p.form-feedback(v-if="feedback.create || feedback.locations || feedback.metadataTemplates")
-        | {{ feedback.create || feedback.locations || feedback.metadataTemplates }}
+      p.form-feedback(v-if="feedback.create || feedback.locations || feedback.metadataTemplates || feedback.metadataCatalogs")
+        | {{ feedback.create || feedback.locations || feedback.metadataTemplates || feedback.metadataCatalogs }}
 </template>

@@ -14,6 +14,7 @@ Frontend base para HouseDB con `Vue 3`, `Vite`, `Pug`, `Sass` y `Vue Router`.
 ## Variables
 
 - `VITE_API_BASE_URL`: URL base del backend a consumir, por defecto `http://localhost:8080`
+- `VITE_SITE_URL`: URL publica del frontend para generar `canonical`, `robots.txt` y `sitemap.xml`
 
 ## Estructura
 

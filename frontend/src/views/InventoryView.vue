@@ -223,7 +223,17 @@ watch(isAuthenticated, () => {
   }
 })
 watch(() => searchPager.offset, runSearch)
+watch(() => searchPager.limit, () => {
+  searchPager.offset = 0
+  runSearch()
+})
 watch(() => timelinePager.offset, () => {
+  if (selectedItemId.value) {
+    loadItemDetail(selectedItemId.value)
+  }
+})
+watch(() => timelinePager.limit, () => {
+  timelinePager.offset = 0
   if (selectedItemId.value) {
     loadItemDetail(selectedItemId.value)
   }
@@ -287,6 +297,7 @@ section.page-section
         :nextOffset="searchPager.nextOffset"
         :loading="loading.search"
         @change="searchPager.offset = $event"
+        @limit-change="searchPager.limit = $event"
       )
 
     article.panel-card
@@ -360,5 +371,6 @@ section.page-section
             :nextOffset="timelinePager.nextOffset"
             :loading="loading.detail"
             @change="timelinePager.offset = $event"
+            @limit-change="timelinePager.limit = $event"
           )
 </template>

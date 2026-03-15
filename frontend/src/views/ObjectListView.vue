@@ -161,7 +161,20 @@ watch(() => pager.offset, () => {
   runSearch()
 })
 
+watch(() => pager.limit, () => {
+  pager.offset = 0
+  syncListQuery()
+  runSearch()
+})
+
 watch(() => timelinePager.offset, () => {
+  if (selectedItem.value?.inventoryItem?.inventoryItemId) {
+    loadItemDetail(selectedItem.value.inventoryItem.inventoryItemId)
+  }
+})
+
+watch(() => timelinePager.limit, () => {
+  timelinePager.offset = 0
   if (selectedItem.value?.inventoryItem?.inventoryItemId) {
     loadItemDetail(selectedItem.value.inventoryItem.inventoryItemId)
   }
@@ -234,6 +247,7 @@ section.page-section
       :nextOffset="pager.nextOffset"
       :loading="loading.search"
       @change="pager.offset = $event"
+      @limit-change="pager.limit = $event"
     )
 
   DetailModal(v-if="hasSelectedItem" :title="selectedItem.inventoryItem.objectName || 'Objeto'" @close="closeDetail")
@@ -284,5 +298,6 @@ section.page-section
           :nextOffset="timelinePager.nextOffset"
           :loading="loading.detail"
           @change="timelinePager.offset = $event"
+          @limit-change="timelinePager.limit = $event"
         )
 </template>

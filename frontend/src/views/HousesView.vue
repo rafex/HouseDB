@@ -219,7 +219,17 @@ async function submitLocation() {
 onMounted(loadHouses)
 watch(isAuthenticated, loadHouses)
 watch(() => housesPager.offset, loadHouses)
+watch(() => housesPager.limit, () => {
+  housesPager.offset = 0
+  loadHouses()
+})
 watch(() => locationsPager.offset, () => {
+  if (selectedHouseId.value) {
+    loadLocations()
+  }
+})
+watch(() => locationsPager.limit, () => {
+  locationsPager.offset = 0
   if (selectedHouseId.value) {
     loadLocations()
   }
@@ -260,6 +270,7 @@ section.page-section
           :nextOffset="housesPager.nextOffset"
           :loading="loading.houses"
           @change="housesPager.offset = $event"
+          @limit-change="housesPager.limit = $event"
         )
 
       form.form-grid(@submit.prevent="submitHouse")
@@ -316,6 +327,7 @@ section.page-section
         :nextOffset="locationsPager.nextOffset"
         :loading="loading.locations"
         @change="locationsPager.offset = $event"
+        @limit-change="locationsPager.limit = $event"
       )
 
       form.form-grid.form-grid--compact(@submit.prevent="submitLocation")

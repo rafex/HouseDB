@@ -106,7 +106,19 @@ onMounted(loadHouses)
 
 watch(() => housesPager.offset, loadHouses)
 
+watch(() => housesPager.limit, () => {
+  housesPager.offset = 0
+  loadHouses()
+})
+
 watch(() => detailPager.offset, () => {
+  if (selectedHouse.value) {
+    openHouse(selectedHouse.value)
+  }
+})
+
+watch(() => detailPager.limit, () => {
+  detailPager.offset = 0
   if (selectedHouse.value) {
     openHouse(selectedHouse.value)
   }
@@ -171,6 +183,7 @@ section.page-section
         :nextOffset="housesPager.nextOffset"
         :loading="loading.houses"
         @change="housesPager.offset = $event"
+        @limit-change="housesPager.limit = $event"
       )
 
   DetailModal(v-if="selectedHouse" :title="selectedHouse.name || 'Casa'" @close="closeDetail")
@@ -218,5 +231,6 @@ section.page-section
           :nextOffset="detailPager.nextOffset"
           :loading="loading.detail"
           @change="detailPager.offset = $event"
+          @limit-change="detailPager.limit = $event"
         )
 </template>

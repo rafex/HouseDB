@@ -12,6 +12,59 @@ import ObjectListView from '../views/ObjectListView.vue'
 import UsersView from '../views/UsersView.vue'
 import { useSessionStore } from '../stores/session'
 
+const SITE_NAME = 'HouseDB'
+const SITE_URL = (import.meta.env.VITE_SITE_URL || 'https://housedb.v1.rafex.cloud').replace(/\/$/, '')
+
+function upsertMeta(selector, attributes) {
+  let element = document.head.querySelector(selector)
+
+  if (!element) {
+    element = document.createElement('meta')
+    document.head.appendChild(element)
+  }
+
+  Object.entries(attributes).forEach(([key, value]) => {
+    element.setAttribute(key, value)
+  })
+}
+
+function upsertLink(selector, attributes) {
+  let element = document.head.querySelector(selector)
+
+  if (!element) {
+    element = document.createElement('link')
+    document.head.appendChild(element)
+  }
+
+  Object.entries(attributes).forEach(([key, value]) => {
+    element.setAttribute(key, value)
+  })
+}
+
+function applySeo(to) {
+  const title = to.meta.title ? `${to.meta.title} | ${SITE_NAME}` : SITE_NAME
+  const description =
+    to.meta.description ||
+    'HouseDB te ayuda a recordar que objetos tienes en casa, donde estan y como encontrarlos rapido.'
+  const robots = to.meta.robots || 'noindex,nofollow'
+  const canonical = `${SITE_URL}${to.path || '/'}`
+
+  document.documentElement.lang = 'es'
+  document.title = title
+
+  upsertMeta('meta[name="description"]', { name: 'description', content: description })
+  upsertMeta('meta[name="robots"]', { name: 'robots', content: robots })
+  upsertMeta('meta[property="og:title"]', { property: 'og:title', content: title })
+  upsertMeta('meta[property="og:description"]', { property: 'og:description', content: description })
+  upsertMeta('meta[property="og:type"]', { property: 'og:type', content: 'website' })
+  upsertMeta('meta[property="og:url"]', { property: 'og:url', content: canonical })
+  upsertMeta('meta[property="og:site_name"]', { property: 'og:site_name', content: SITE_NAME })
+  upsertMeta('meta[name="twitter:card"]', { name: 'twitter:card', content: 'summary_large_image' })
+  upsertMeta('meta[name="twitter:title"]', { name: 'twitter:title', content: title })
+  upsertMeta('meta[name="twitter:description"]', { name: 'twitter:description', content: description })
+  upsertLink('link[rel="canonical"]', { rel: 'canonical', href: canonical })
+}
+
 const routes = [
   {
     path: '/login',
@@ -20,6 +73,8 @@ const routes = [
     meta: {
       title: 'Login',
       publicOnly: true,
+      description: 'Accede a HouseDB para consultar, registrar y ubicar objetos dentro de tu casa.',
+      robots: 'index,follow',
     },
   },
   {
@@ -37,6 +92,7 @@ const routes = [
           title: 'Dashboard',
           section: 'Resumen general',
           requiresAuth: true,
+          description: 'Resumen operativo de HouseDB con acceso rapido a objetos, casas y ubicaciones.',
         },
       },
       {
@@ -47,6 +103,7 @@ const routes = [
           title: 'Casas',
           section: 'Espacios > Casas',
           requiresAuth: true,
+          description: 'Consulta las casas registradas y abre su contexto de ubicaciones dentro de HouseDB.',
         },
       },
       {
@@ -57,6 +114,7 @@ const routes = [
           title: 'Lista de objetos',
           section: 'Objetos > Lista',
           requiresAuth: true,
+          description: 'Busca y revisa objetos guardados en HouseDB para saber si los tienes y donde estan.',
         },
       },
       {
@@ -67,6 +125,7 @@ const routes = [
           title: 'Nuevo objeto',
           section: 'Alta guiada de un objeto',
           requiresAuth: true,
+          description: 'Registra un objeto con ubicacion, atributos y metadata reutilizable para encontrarlo despues.',
         },
       },
       {
@@ -77,6 +136,7 @@ const routes = [
           title: 'Nueva casa',
           section: 'Espacios > Casas > Agregar',
           requiresAuth: true,
+          description: 'Agrega una casa a HouseDB para empezar a organizar objetos y locaciones.',
         },
       },
       {
@@ -87,6 +147,7 @@ const routes = [
           title: 'Locaciones',
           section: 'Espacios > Locaciones',
           requiresAuth: true,
+          description: 'Explora locaciones y estructura espacios fisicos donde viven tus objetos.',
         },
       },
       {
@@ -97,6 +158,7 @@ const routes = [
           title: 'Nueva locacion',
           section: 'Espacios > Locaciones > Agregar',
           requiresAuth: true,
+          description: 'Crea una nueva locacion dentro de una casa para ubicar objetos con mayor precision.',
         },
       },
       {
@@ -107,6 +169,7 @@ const routes = [
           title: 'Acceso y API',
           section: 'Usuarios, tokens y administracion tecnica',
           requiresAuth: true,
+          description: 'Administra usuarios, tokens, catalogos y plantillas de metadata reutilizable en HouseDB.',
         },
       },
     ],
@@ -139,7 +202,7 @@ router.beforeEach((to) => {
 })
 
 router.afterEach((to) => {
-  document.title = `${to.meta.title} | HouseDB`
+  applySeo(to)
 })
 
 export default router

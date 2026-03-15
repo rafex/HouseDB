@@ -135,6 +135,13 @@ watch(() => pager.offset, () => {
     loadLocations()
   }
 })
+
+watch(() => pager.limit, () => {
+  pager.offset = 0
+  if (filters.houseId) {
+    loadLocations()
+  }
+})
 </script>
 
 <template lang="pug">
@@ -200,6 +207,7 @@ section.page-section
         :nextOffset="pager.nextOffset"
         :loading="loading.locations"
         @change="pager.offset = $event"
+        @limit-change="pager.limit = $event"
       )
 
   DetailModal(v-if="selectedLocation" :title="selectedLocation.name || 'Locacion'" @close="closeDetail")
