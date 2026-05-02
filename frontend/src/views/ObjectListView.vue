@@ -18,11 +18,17 @@ const PAGE_SIZE = 12
 const loading = reactive({
   search: false,
   detail: false,
+  move: false,
+  favorite: false,
+  locations: false,
 })
 
 const feedback = reactive({
   search: '',
   detail: '',
+  move: '',
+  favorite: '',
+  locations: '',
 })
 
 const filters = reactive({
@@ -33,11 +39,30 @@ const filters = reactive({
 const results = ref([])
 const selectedItem = ref(null)
 const selectedTimeline = ref([])
+const moveLocations = ref([])
 
 const pager = reactive(createPaginationState(PAGE_SIZE))
 const timelinePager = reactive(createPaginationState(8))
 
 const hasSelectedItem = computed(() => Boolean(selectedItem.value))
+const selectedItemId = computed(() => selectedItem.value?.inventoryItem?.inventoryItemId ?? '')
+
+const moveForm = reactive({
+  houseId: '',
+  toHouseLocationLeafId: '',
+  movedBy: '',
+  movementReason: '',
+  notes: '',
+})
+
+const moveLeafLocationOptions = computed(() =>
+  moveLocations.value
+    .filter((location) => location.isLeaf)
+    .map((location) => ({
+      value: location.houseLocationId,
+      label: location.path || location.name,
+    })),
+)
 
 function syncListQuery(itemId = '') {
   const query = {}
@@ -86,6 +111,29 @@ async function runSearch() {
   }
 }
 
+async function loadMoveLocations() {
+  if (!moveForm.houseId) {
+    moveLocations.value = []
+    moveForm.toHouseLocationLeafId = ''
+    return
+  }
+
+  loading.locations = true
+  feedback.locations = ''
+
+  try {
+    const response = await api.listHouseLocations(moveForm.houseId, {
+      limit: 500,
+      offset: 0,
+    })
+    moveLocations.value = response.locations ?? []
+  } catch (error) {
+    feedback.locations = normalizeApiError(error).message
+  } finally {
+    loading.locations = false
+  }
+}
+
 async function loadItemDetail(inventoryItemId) {
   if (!inventoryItemId) {
     return
@@ -106,11 +154,58 @@ async function loadItemDetail(inventoryItemId) {
     selectedItem.value = detail
     selectedTimeline.value = timeline.events ?? []
     Object.assign(timelinePager, paginationFromResponse(timeline, timelinePager))
+    moveForm.houseId = detail.inventoryItem.houseId || ''
+    await loadMoveLocations()
     syncListQuery(inventoryItemId)
   } catch (error) {
     feedback.detail = normalizeApiError(error).message
   } finally {
     loading.detail = false
+  }
+}
+
+async function moveItem() {
+  if (!selectedItemId.value) {
+    feedback.move = 'Selecciona un objeto primero.'
+    return
+  }
+
+  loading.move = true
+  feedback.move = ''
+
+  try {
+    await api.moveItem(selectedItemId.value, {
+      toHouseLocationLeafId: moveForm.toHouseLocationLeafId,
+      movedBy: moveForm.movedBy || undefined,
+      movementReason: moveForm.movementReason || undefined,
+      notes: moveForm.notes || undefined,
+    })
+    feedback.move = 'Objeto movido correctamente.'
+    timelinePager.offset = 0
+    await loadItemDetail(selectedItemId.value)
+  } catch (error) {
+    feedback.move = normalizeApiError(error).message
+  } finally {
+    loading.move = false
+  }
+}
+
+async function toggleFavorite(isFavorite) {
+  if (!selectedItemId.value) {
+    feedback.favorite = 'Selecciona un objeto primero.'
+    return
+  }
+
+  loading.favorite = true
+  feedback.favorite = ''
+
+  try {
+    await api.setFavorite(selectedItemId.value, { isFavorite })
+    feedback.favorite = isFavorite ? 'Marcado como favorito.' : 'Favorito removido.'
+  } catch (error) {
+    feedback.favorite = normalizeApiError(error).message
+  } finally {
+    loading.favorite = false
   }
 }
 
@@ -179,6 +274,8 @@ watch(() => timelinePager.limit, () => {
     loadItemDetail(selectedItem.value.inventoryItem.inventoryItemId)
   }
 })
+
+watch(() => moveForm.houseId, loadMoveLocations)
 </script>
 
 <template lang="pug">
@@ -273,6 +370,25 @@ section.page-section
         div
           dt Kiwi
           dd {{ selectedItem.kiwiStatus || 'Sin estado Kiwi' }}
+      form.form-grid.form-grid--compact(@submit.prevent="moveItem")
+        p.section-label Mover objeto
+        select.form-input(v-model="moveForm.houseId")
+          option(value="") Selecciona la casa destino
+          option(v-for="option in houseOptions" :key="option.value" :value="option.value")
+            | {{ option.label }}
+        select.form-input(v-model="moveForm.toHouseLocationLeafId" :disabled="loading.locations || moveLeafLocationOptions.length === 0")
+          option(value="") Selecciona nueva locacion hoja
+          option(v-for="option in moveLeafLocationOptions" :key="option.value" :value="option.value")
+            | {{ option.label }}
+        input.form-input(v-model="moveForm.movedBy" placeholder="Quien lo movio")
+        input.form-input(v-model="moveForm.movementReason" placeholder="Motivo del movimiento")
+        textarea.form-input.form-textarea(v-model="moveForm.notes" placeholder="Notas para encontrarlo despues")
+        .button-row
+          button.primary-button(type="submit" :disabled="loading.move") Guardar movimiento
+          button.ghost-button(type="button" @click="toggleFavorite(true)" :disabled="loading.favorite") Favorito
+          button.ghost-button(type="button" @click="toggleFavorite(false)" :disabled="loading.favorite") Quitar favorito
+        p.form-feedback(v-if="feedback.move || feedback.favorite || feedback.locations")
+          | {{ feedback.move || feedback.favorite || feedback.locations }}
       .table-card
         .table-card__header
           h4.table-card__title Historial
