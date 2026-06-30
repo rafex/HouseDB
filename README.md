@@ -27,3 +27,22 @@
 - `KIWI_ADMIN_PASSWORD`: password admin de Kiwi (requerido si bootstrap está en `true`)
 - `KIWI_APP_CLIENT_NAME`: nombre del app client a crear (default: `HouseDB`)
 - `KIWI_APP_CLIENT_ROLES`: roles CSV del app client (default: `ADMIN`)
+
+## Despliegue
+
+HouseDB se despliega en Server 2 dentro del namespace `poc-housedb`.
+
+Hosts publicados:
+- Backend: `https://housedb.v1.rafex.cloud`
+- Frontend: `https://housedb.rafex.app`
+
+Secretos de GitHub Actions requeridos:
+- `KUBE_CONFIG_DATA`: kubeconfig base64 del service account `github-deployer` en `poc-housedb`.
+- `GHCR_PULL_USERNAME`: usuario con permisos de lectura en GHCR.
+- `GHCR_PULL_TOKEN`: token con permisos para descargar las imagenes privadas de GHCR.
+
+Secretos de Kubernetes requeridos:
+- `poc-housedb/housedb-backend-secrets`: credenciales de base de datos, JWT y cliente Kiwi.
+- `poc-housedb/ghcr-pull-secret`: creado o actualizado por el workflow a partir de los secretos de GitHub Actions.
+
+El backend usa el service account runtime `poc-housedb/housedb-backend`. El workflow no crea namespaces ni service accounts de runtime; esos recursos los administra la infraestructura.

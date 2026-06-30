@@ -11,7 +11,7 @@ Chart Helm para desplegar HouseDB backend en Kubernetes con imagen en GHCR.
 1) Crear secret con credenciales y secretos:
 
 ```bash
-kubectl -n mvps create secret generic housedb-backend-secrets \
+kubectl -n poc-housedb create secret generic housedb-backend-secrets \
   --from-literal=DB_URL='jdbc:postgresql://postgres:5432/housedb' \
   --from-literal=DB_USER='housedb_app' \
   --from-literal=DB_PASSWORD='changeme' \
@@ -24,9 +24,12 @@ kubectl -n mvps create secret generic housedb-backend-secrets \
 
 ```bash
 helm upgrade --install housedb-backend ./helm/housedb-backend \
-  --namespace mvps --create-namespace \
+  --namespace poc-housedb \
   --set image.tag="<sha-o-tag-version>" \
-  --set existingSecret="housedb-backend-secrets"
+  --set existingSecret="housedb-backend-secrets" \
+  --set imagePullSecrets[0].name="ghcr-pull-secret" \
+  --set serviceAccount.create=false \
+  --set serviceAccount.name="housedb-backend"
 ```
 
 ## Ingress

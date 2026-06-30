@@ -21,10 +21,15 @@ jobs:
   deploy-backend:
     runs-on: ubuntu-latest
     env:
-      K3S_NAMESPACE: mvps
+      K3S_NAMESPACE: poc-housedb
       RELEASE_NAME: housedb-backend
       CHART_PATH: ./helm/housedb-backend
       IMAGE_REPOSITORY: ghcr.io/rafex/housedb-backend
+      GHCR_PULL_SECRET: ghcr-pull-secret
+      GHCR_REGISTRY: ghcr.io
+      GHCR_PULL_USERNAME: ${{ secrets.GHCR_PULL_USERNAME }}
+      GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+      GHCR_PULL_EMAIL: actions@github.com
 
     steps:
       - name: Checkout code
@@ -61,9 +66,20 @@ jobs:
           echo "value=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
           echo "Deploy image: ${IMAGE_REPOSITORY}:$IMAGE_TAG"
 
-      - name: Ensure namespace exists
+      - name: Check namespace access
         run: |
-          kubectl get namespace "$K3S_NAMESPACE" >/dev/null 2>&1 || kubectl create namespace "$K3S_NAMESPACE"
+          kubectl -n "$K3S_NAMESPACE" auth can-i get deployments >/dev/null
+
+      - name: Ensure GHCR pull secret
+        run: |
+          test -n "$GHCR_PULL_USERNAME"
+          test -n "$GHCR_PULL_TOKEN"
+          kubectl -n "$K3S_NAMESPACE" create secret docker-registry "$GHCR_PULL_SECRET" \
+            --docker-server="$GHCR_REGISTRY" \
+            --docker-username="$GHCR_PULL_USERNAME" \
+            --docker-password="$GHCR_PULL_TOKEN" \
+            --docker-email="$GHCR_PULL_EMAIL" \
+            --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Lint chart
         run: |
@@ -77,6 +93,9 @@ jobs:
             --namespace "$K3S_NAMESPACE" \
             --set image.repository="$IMAGE_REPOSITORY" \
             --set image.tag="${{ steps.deploy_tag.outputs.value }}" \
+            --set imagePullSecrets[0].name="$GHCR_PULL_SECRET" \
+            --set serviceAccount.create=false \
+            --set serviceAccount.name=housedb-backend \
             --wait --timeout 5m
 
       - name: Show rollout status
@@ -126,10 +145,15 @@ jobs:
   deploy-frontend:
     runs-on: ubuntu-latest
     env:
-      K3S_NAMESPACE: mvps
+      K3S_NAMESPACE: poc-housedb
       RELEASE_NAME: housedb-frontend
       CHART_PATH: ./helm/housedb-frontend
       IMAGE_REPOSITORY: ghcr.io/rafex/housedb-frontend
+      GHCR_PULL_SECRET: ghcr-pull-secret
+      GHCR_REGISTRY: ghcr.io
+      GHCR_PULL_USERNAME: ${{ secrets.GHCR_PULL_USERNAME }}
+      GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+      GHCR_PULL_EMAIL: actions@github.com
 
     steps:
       - name: Checkout code
@@ -166,9 +190,20 @@ jobs:
           echo "value=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
           echo "Deploy image: ${IMAGE_REPOSITORY}:$IMAGE_TAG"
 
-      - name: Ensure namespace exists
+      - name: Check namespace access
         run: |
-          kubectl get namespace "$K3S_NAMESPACE" >/dev/null 2>&1 || kubectl create namespace "$K3S_NAMESPACE"
+          kubectl -n "$K3S_NAMESPACE" auth can-i get deployments >/dev/null
+
+      - name: Ensure GHCR pull secret
+        run: |
+          test -n "$GHCR_PULL_USERNAME"
+          test -n "$GHCR_PULL_TOKEN"
+          kubectl -n "$K3S_NAMESPACE" create secret docker-registry "$GHCR_PULL_SECRET" \
+            --docker-server="$GHCR_REGISTRY" \
+            --docker-username="$GHCR_PULL_USERNAME" \
+            --docker-password="$GHCR_PULL_TOKEN" \
+            --docker-email="$GHCR_PULL_EMAIL" \
+            --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Lint chart
         run: |
@@ -182,6 +217,7 @@ jobs:
             --namespace "$K3S_NAMESPACE" \
             --set image.repository="$IMAGE_REPOSITORY" \
             --set image.tag="${{ steps.deploy_tag.outputs.value }}" \
+            --set imagePullSecrets[0].name="$GHCR_PULL_SECRET" \
             --wait --timeout 5m
 
       - name: Show rollout status
